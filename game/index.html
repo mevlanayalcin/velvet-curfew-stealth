@@ -1,19 +1,348 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Block Dodger</title>
-<style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #11141b; }
-  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  /* Read aloud, never shown: the status line screen readers announce. */
-  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1024, initial-scale=1.0" />
+  <title>Velvet Curfew — Art-Deco Tactical Stealth</title>
+  <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-<canvas id="game" aria-label="Block Dodger: move the paddle left and right to dodge falling blocks and catch coins"></canvas>
-<p id="status" role="status" aria-live="polite"></p>
-<script type="module" src="./src/main.js"></script>
+  <div id="app" class="app-frame">
+    <!-- Top Art-Deco Brass Header (36px) -->
+    <header class="top-bar">
+      <div class="brand-strip">
+        <span class="deco-diamond"></span>
+        <span class="brand-title">VELVET CURFEW</span>
+        <span class="brand-sep">·</span>
+        <span id="hud-wing-name" class="wing-label">WING I: MERIDIAN ROTUNDA</span>
+      </div>
+      <div class="top-telemetry">
+        <div class="top-pill">
+          <span class="pill-k">INTEGRITY</span>
+          <span id="hud-integrity" class="integrity-pips"></span>
+        </div>
+        <div class="top-pill">
+          <span class="pill-k">TIME</span>
+          <span id="hud-timer" class="pill-v mono">00:42</span>
+        </div>
+        <div class="top-pill score-pill">
+          <span class="pill-k">SCORE</span>
+          <span id="hud-score" class="pill-v mono gold">4,850</span>
+        </div>
+        <button id="btn-mute" class="icon-btn" title="Toggle Audio (M)">SFX ON</button>
+      </div>
+    </header>
+
+    <!-- Main 3-Column Stage (568px): 178 + 668 + 178 = 1024px -->
+    <main class="main-grid">
+      <!-- Left Sidebar (178px) -->
+      <aside class="sidebar sidebar-left">
+        <section class="panel crest-panel">
+          <div class="crest-emblem" aria-hidden="true">
+            <svg viewBox="0 0 120 36" width="120" height="36">
+              <path d="M6 18 L40 18 M80 18 L114 18" stroke="#d4a84f" stroke-width="1.2" opacity="0.65"/>
+              <polygon points="60,3 74,18 60,33 46,18" fill="none" stroke="#d4a84f" stroke-width="1.6"/>
+              <polygon points="60,8 69,18 60,28 51,18" fill="#d4a84f" opacity="0.22" stroke="#f4ead5" stroke-width="0.9"/>
+              <circle cx="60" cy="18" r="2.6" fill="#d4a84f"/>
+            </svg>
+          </div>
+          <div class="crest-sub" id="hud-wing-sub">WING 1 OF 5 · CURFEW</div>
+          <div id="hud-ghost-badge" class="ghost-tag">GHOST STREAK · UNSEEN</div>
+        </section>
+
+        <section class="panel">
+          <h2 class="panel-title">WING OBJECTIVES</h2>
+          <ul class="obj-list" id="hud-objectives">
+            <li class="obj-item done" id="obj-ledger">
+              <span class="obj-check">✓</span>
+              <span class="obj-text">Vault Ledger</span>
+            </li>
+            <li class="obj-item active" id="obj-exit">
+              <span class="obj-check">○</span>
+              <span class="obj-text">Roof Exit</span>
+            </li>
+            <li class="obj-item bonus" id="obj-relic">
+              <span class="obj-check">◇</span>
+              <span class="obj-text">Gilded Relic <em class="opt">+600</em></span>
+            </li>
+          </ul>
+        </section>
+
+        <section class="panel perks-panel">
+          <h2 class="panel-title">ACTIVE PERKS</h2>
+          <div id="hud-perks" class="perk-list">
+            <div class="perk-chip">
+              <span class="perk-name">Velvet Steps</span>
+              <span class="perk-desc">Quiet shadow crouch</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel rules-panel">
+          <h2 class="panel-title">HEIST PROTOCOL</h2>
+          <div class="rule-pill rule-win">
+            <span class="rule-tag">WIN:</span>
+            <span class="rule-body">Steal ledger &amp; reach Exit unseen</span>
+          </div>
+          <div class="rule-pill rule-lose">
+            <span class="rule-tag">LOSE:</span>
+            <span class="rule-body">Caught in alert — 0 Integrity</span>
+          </div>
+        </section>
+      </aside>
+
+      <!-- Center Tactical Canvas (668x568) -->
+      <section class="stage-wrap">
+        <canvas id="stage" width="668" height="568"></canvas>
+        <div id="toast-banner" class="toast-banner hidden"></div>
+
+        <!-- Pause Overlay -->
+        <div id="overlay-pause" class="stage-overlay hidden">
+          <div class="deco-card pause-card">
+            <div class="card-kicker">CURFEW SUSPENDED</div>
+            <h2 class="card-title">PAUSED</h2>
+            <p class="card-sub">Press <kbd>P</kbd> or <kbd>ESC</kbd> to resume infiltration.</p>
+            <div class="btn-row">
+              <button id="btn-resume" class="btn-primary">RESUME HEIST</button>
+              <button id="btn-restart-pause" class="btn-secondary">RESTART WING</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Game Over Overlay -->
+        <div id="overlay-gameover" class="stage-overlay hidden">
+          <div class="deco-card lose-card">
+            <div class="card-kicker crimson">CURFEW BREACHED</div>
+            <h2 class="card-title">APPREHENDED</h2>
+            <p id="gameover-reason" class="card-sub">Integrity depleted under full guard alert.</p>
+            <div class="stat-mini-row" id="gameover-stats"></div>
+            <div class="btn-row">
+              <button id="btn-retry-wing" class="btn-primary">RETRY WING [R]</button>
+              <button id="btn-back-title" class="btn-secondary">TITLE SCREEN</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Title Screen Overlay (?shot=title) -->
+        <div id="overlay-title" class="stage-overlay hidden">
+          <div class="deco-card title-card">
+            <div class="title-sunburst" aria-hidden="true">
+              <svg viewBox="0 0 260 36" width="260" height="36">
+                <line x1="8" y1="18" x2="96" y2="18" stroke="#d4a84f" stroke-width="1.2"/>
+                <line x1="164" y1="18" x2="252" y2="18" stroke="#d4a84f" stroke-width="1.2"/>
+                <polygon points="130,2 146,18 130,34 114,18" fill="#131d36" stroke="#d4a84f" stroke-width="1.8"/>
+                <polygon points="130,8 140,18 130,28 120,18" fill="#d4a84f" opacity="0.35"/>
+                <path d="M98 18 L108 11 L108 25 Z M162 18 L152 11 L152 25 Z" fill="#d4a84f" opacity="0.7"/>
+              </svg>
+            </div>
+            <div class="card-kicker">GRAND MERIDIAN MUSEUM · MIDNIGHT HEIST</div>
+            <h1 class="hero-title">VELVET CURFEW</h1>
+            <p class="hero-tagline">Slip through chandelier glare, distract patrols with brass coins, and vanish with the Vault Ledger.</p>
+
+            <div class="howto-grid">
+              <div class="howto-step">
+                <div class="howto-num">01</div>
+                <div class="howto-icon cyan">◐</div>
+                <div class="howto-head">HIDE</div>
+                <div class="howto-copy">Crouch in indigo shadows &amp; behind marble cover.</div>
+              </div>
+              <div class="howto-step">
+                <div class="howto-num">02</div>
+                <div class="howto-icon gold">◎</div>
+                <div class="howto-head">LURE</div>
+                <div class="howto-copy">Toss brass coins to pull guards off sightlines.</div>
+              </div>
+              <div class="howto-step">
+                <div class="howto-num">03</div>
+                <div class="howto-icon emerald">✦</div>
+                <div class="howto-head">ESCAPE</div>
+                <div class="howto-copy">Lift the Ledger &amp; reach the emerald Exit unseen.</div>
+              </div>
+            </div>
+
+            <div class="wing-picker">
+              <div class="picker-label">SELECT STARTING WING</div>
+              <div id="title-wing-list" class="wing-pills"></div>
+            </div>
+
+            <div class="title-actions">
+              <button id="btn-start" class="btn-primary btn-lg">BEGIN HEIST</button>
+              <span class="start-hint">or press <kbd>SPACE</kbd> / <kbd>ENTER</kbd></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Between-Wing Perk Draft Overlay (?shot=tactics) -->
+        <div id="overlay-tactics" class="stage-overlay hidden">
+          <div class="deco-card tactics-card">
+            <div class="tactics-header">
+              <div>
+                <div id="tactics-kicker" class="card-kicker emerald">WING I CLEARED · GHOST BONUS +1,200</div>
+                <h2 class="card-title">SELECT 1 OF 3 STEALTH PERKS</h2>
+              </div>
+              <div class="next-wing-chip" id="tactics-next-chip">
+                <span class="chip-k">NEXT WING</span>
+                <span class="chip-v">II · CLOCKWORK ARCHIVE</span>
+              </div>
+            </div>
+
+            <div id="tactics-cards" class="perk-draft-grid"></div>
+
+            <div class="intel-strip" id="tactics-intel">
+              <span class="intel-badge">PATROL INTEL</span>
+              <span class="intel-copy">Bell Hound detects footsteps across library stacks — stick to velvet runners or toss coins behind pillars.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Victory / Ghost Rank S Debrief Overlay (?shot=victory) -->
+        <div id="overlay-victory" class="stage-overlay hidden">
+          <div class="deco-card victory-card">
+            <div class="victory-top">
+              <div class="rank-seal">
+                <div class="seal-ring">
+                  <span id="victory-grade" class="seal-letter">S</span>
+                </div>
+                <div id="victory-rank-title" class="seal-caption">VELVET PHANTOM</div>
+              </div>
+              <div class="victory-summary">
+                <div class="card-kicker emerald">CURFEW MASTERED · ALL WINGS EXTRACTED</div>
+                <h2 class="card-title">HEIST DEBRIEF</h2>
+                <div class="kpi-grid" id="victory-kpis"></div>
+              </div>
+            </div>
+
+            <div class="chart-section">
+              <div class="chart-head">
+                <span>WING EXTRACTION PERFORMANCE</span>
+                <span id="victory-total-score" class="gold mono">TOTAL: 18,450 PTS</span>
+              </div>
+              <div id="victory-bars" class="wing-bars"></div>
+            </div>
+
+            <div class="feats-row" id="victory-feats"></div>
+
+            <div class="btn-row">
+              <button id="btn-play-again" class="btn-primary">PLAY AGAIN</button>
+              <button id="btn-next-or-title" class="btn-secondary">NEXT WING / SELECT</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Sidebar (178px) -->
+      <aside class="sidebar sidebar-right">
+        <section class="panel">
+          <h2 class="panel-title">STEALTH STATUS</h2>
+          <div class="light-row">
+            <span class="stat-k">LIGHT</span>
+            <span id="hud-light-badge" class="light-badge shadowed">SHADOWED</span>
+          </div>
+
+          <div class="meter-block">
+            <div class="meter-head">
+              <span class="stat-k">NOISE</span>
+              <span id="hud-noise-val" class="stat-v mono">12 dB</span>
+            </div>
+            <div class="meter-track"><div id="hud-noise-bar" class="meter-fill noise-fill" style="width:18%"></div></div>
+          </div>
+
+          <div class="meter-block">
+            <div class="meter-head">
+              <span class="stat-k">ALERT / RECOVERY</span>
+              <span id="hud-alert-val" class="stat-v mono amber">SUSPICION 68%</span>
+            </div>
+            <div class="meter-track"><div id="hud-alert-bar" class="meter-fill alert-fill" style="width:68%"></div></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2 class="panel-title">GADGETS</h2>
+          <div class="gadget-row">
+            <div>
+              <div class="gadget-name">COIN LURE <kbd>LMB</kbd></div>
+              <div class="gadget-sub">Draws guard sightline</div>
+            </div>
+            <div id="hud-coins" class="pip-row gold-pips"></div>
+          </div>
+          <div class="gadget-row">
+            <div>
+              <div class="gadget-name">VELVET SMOKE <kbd>Q</kbd></div>
+              <div class="gadget-sub">Blocks vision cones</div>
+            </div>
+            <div id="hud-smokes" class="pip-row violet-pips"></div>
+          </div>
+        </section>
+
+        <section class="panel guard-panel">
+          <h2 class="panel-title">GUARD INTEL</h2>
+          <div id="hud-guards" class="guard-list">
+            <div class="guard-row">
+              <span class="guard-dot warden"></span>
+              <div class="guard-info">
+                <div class="guard-name">Lantern Warden</div>
+                <div class="guard-trait">Steady cone · Lured by coin</div>
+              </div>
+              <span class="guard-state">?</span>
+            </div>
+            <div class="guard-row">
+              <span class="guard-dot hound"></span>
+              <div class="guard-info">
+                <div class="guard-name">Bell Hound</div>
+                <div class="guard-trait">Keen hearing · Fast sprint</div>
+              </div>
+              <span class="guard-state">OK</span>
+            </div>
+            <div class="guard-row">
+              <span class="guard-dot captain"></span>
+              <div class="guard-info">
+                <div class="guard-name">Night Captain</div>
+                <div class="guard-trait">Wide sweep · High suspicion</div>
+              </div>
+              <span class="guard-state">OK</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel streak-panel">
+          <div class="streak-grid">
+            <div class="streak-cell">
+              <span class="stat-k">ALERTS</span>
+              <span id="hud-alerts-count" class="streak-num emerald mono">0</span>
+            </div>
+            <div class="streak-cell">
+              <span class="stat-k">RECOVERIES</span>
+              <span id="hud-recoveries" class="streak-num gold mono">2</span>
+            </div>
+          </div>
+          <div class="streak-mult">
+            <span>GHOST MULTIPLIER</span>
+            <strong id="hud-mult" class="gold mono">×2.5</strong>
+          </div>
+        </section>
+      </aside>
+    </main>
+
+    <!-- Bottom Keycap Legend Bar (36px) -->
+    <footer class="bottom-bar">
+      <span class="key-item"><kbd>WASD</kbd> MOVE</span>
+      <span class="key-sep">·</span>
+      <span class="key-item"><kbd>SHIFT</kbd> SHADOW</span>
+      <span class="key-sep">·</span>
+      <span class="key-item"><kbd>LMB</kbd>/<kbd>SPACE</kbd> COIN LURE</span>
+      <span class="key-sep">·</span>
+      <span class="key-item"><kbd>E</kbd> LOOT/HIDE</span>
+      <span class="key-sep">·</span>
+      <span class="key-item"><kbd>Q</kbd> SMOKE</span>
+      <span class="key-sep">·</span>
+      <span class="key-item"><kbd>P</kbd> PAUSE</span>
+      <span class="key-sep">·</span>
+      <span class="key-item"><kbd>M</kbd> SOUND</span>
+      <span class="key-sep">·</span>
+      <span class="key-item"><kbd>R</kbd> RESTART</span>
+    </footer>
+  </div>
+
+  <script type="module" src="./js/main.js"></script>
 </body>
 </html>
