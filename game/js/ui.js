@@ -1,4 +1,4 @@
-// Velvet Curfew v2 — Right HUD Panel, Top Strip, Title, Perk Draft & Split Victory/Campaign UI
+// Velvet Curfew v2b — Original Art-Deco Dossier HUD & Split 75/25 Heist Debrief Ledger
 
 import { WINGS } from './levels.js';
 
@@ -15,91 +15,106 @@ export function renderWingPicker(selectedIndex, onSelect) {
   WINGS.forEach((w, idx) => {
     const b = document.createElement('button');
     b.className = `wing-pill${idx === selectedIndex ? ' selected' : ''}`;
-    b.innerHTML = `<strong>WING ${w.num}</strong><span>${w.title.replace(/^THE\s+/, '').split(' ')[0]}</span>`;
+    b.innerHTML = `<strong>WING ${w.roman}</strong><span>${w.title.split(' ')[0]}</span>`;
     b.onclick = () => onSelect(idx);
     host.appendChild(b);
   });
 }
 
-const BANNER_META = {
-  HIDDEN: { cls: 'hidden-st', text: 'HIDDEN', sub: 'Unseen in shadow. Slip past lanterns.' },
-  SUSPICIOUS: { cls: 'suspicious', text: 'SUSPICIOUS ?', sub: 'Something caught an eye. Freeze.' },
-  ALARM: { cls: 'alarm', text: 'ALARM !', sub: 'You are seen! Break line of sight' },
-  SEARCHING: { cls: 'searching', text: 'SEARCHING', sub: 'They are hunting your last spot' },
+const STATE_COPY = {
+  UNSEEN: { cls: 'unseen', label: 'UNSEEN', copy: 'Hidden in midnight velvet.' },
+  CURIOUS: { cls: 'curious', label: 'CURIOUS · ?', copy: 'A curator heard glass shift. Hold still.' },
+  BREACH: { cls: 'breach', label: 'CURFEW BREACH · !', copy: 'Docents converging on the gallery!' },
+  SWEEPING: { cls: 'sweeping', label: 'SWEEPING', copy: 'Security sweeping the last shadow.' },
 };
 
 export function syncHud(state) {
   const w = state.wing;
   const p = state.player;
+  const isDebrief = state.mode === 'debrief';
 
-  $('hud-wing-num').textContent = String(w.num);
+  $('hud-wing-roman').textContent = w.roman;
   $('hud-wing-name').textContent = w.title;
-  $('hud-objective').textContent = state.ledgerStolen
-    ? `✓ ${w.ledger.label} stolen → OBJECTIVE: Reach the EXIT unseen`
-    : `OBJECTIVE: ${w.objective}`;
+  $('hud-gallery').textContent = `${w.roman} / V`;
   $('hud-timer').textContent = formatTime(state.time);
-  $('hud-score').textContent = state.score.toLocaleString('en-US');
+  $('hud-score').textContent = `+${state.score.toLocaleString('en-US')}`;
+  $('hud-objective').textContent = state.sapphireTaken
+    ? `✦ Star Sapphire secured — board the Brass Elevator unseen`
+    : w.objective;
 
-  // Giant Detection Banner
-  const meta = BANNER_META[state.detectionState] || BANNER_META.HIDDEN;
-  const banner = $('hud-state-banner');
-  banner.textContent = meta.text;
-  banner.className = `state-banner ${meta.cls}`;
-  $('hud-state-sub').textContent = meta.sub;
+  // Toggle Split 75% Map / 25% Art-Deco Ledger in Debrief mode
+  document.querySelector('.main-split').classList.toggle('debrief-mode', isDebrief);
+  $('hud-live-view').classList.toggle('hidden', isDebrief);
+  $('hud-debrief-view').classList.toggle('hidden', !isDebrief);
+  $('debrief-map-tag').classList.toggle('hidden', !isDebrief);
 
-  // Alarm 3-pip Escalation
-  const pips = $('hud-alarm-pips').children;
+  if (isDebrief) return;
+
+  const meta = STATE_COPY[state.detectionState] || STATE_COPY.UNSEEN;
+  const badge = $('hud-state-badge');
+  badge.textContent = meta.label;
+  badge.className = `state-badge ${meta.cls}`;
+  $('hud-state-copy').textContent = meta.copy;
+
+  // Curfew Bells (3 pips)
+  const pips = $('hud-bells').children;
   for (let i = 0; i < 3; i++) {
-    pips[i].className = `apip${i < state.alarmLevel ? (state.alarmLevel >= 2 || state.detectionState === 'ALARM' ? ' on-red' : ' on-warn') : ''}`;
+    pips[i].className = `bpip${i < state.bellCount ? (state.detectionState === 'BREACH' || state.bellCount >= 2 ? ' ring' : ' warn') : ''}`;
   }
-  const aw = $('hud-alarm-word');
-  aw.textContent = state.alarmLevel === 0 ? 'QUIET' : state.alarmLevel === 1 ? 'WARY' : state.alarmLevel === 2 ? 'HIGH' : 'LOCKDOWN';
-  aw.className = `alarm-word${state.alarmLevel >= 2 ? ' lock' : state.alarmLevel === 1 ? ' wary' : ''}`;
+  const bw = $('hud-bell-word');
+  bw.textContent = state.bellCount === 0 ? 'HUSHED' : state.bellCount === 1 ? 'TOLLED' : state.bellCount === 2 ? 'HIGH' : 'LOCKED';
+  bw.className = `bell-word ${state.bellCount >= 1 ? 'crimson' : ''}`;
 
-  // Visibility Bar
-  const vw = $('hud-vis-word');
-  const vf = $('hud-vis-fill');
-  if (p.inLight) {
-    vw.textContent = 'IN THE LIGHT';
-    vw.className = 'bar-tag amber';
-    vf.className = 'bar-fill vis-light';
-    vf.style.width = `${Math.round(Math.max(62, p.visibility * 100))}%`;
+  // Exposure meter
+  const ew = $('hud-exp-word');
+  const ef = $('hud-exp-fill');
+  if (p.inVeil) {
+    ew.textContent = 'VELVET VEIL'; ew.className = 'mval cyan';
+    ef.className = 'mfill exp-shadow'; ef.style.width = '10%';
+  } else if (p.inLight) {
+    ew.textContent = 'CHANDELIER'; ew.className = 'mval amber';
+    ef.className = 'mfill exp-light'; ef.style.width = `${Math.round(Math.max(66, p.exposure * 100))}%`;
   } else {
-    vw.textContent = p.inSmoke ? 'IN SMOKE' : 'IN SHADOW';
-    vw.className = 'bar-tag emerald';
-    vf.className = 'bar-fill vis-shadow';
-    vf.style.width = `${Math.round(Math.max(8, p.visibility * 100))}%`;
+    ew.textContent = p.inAlcove ? 'SHADOW ALCOVE' : 'DIM VELVET'; ew.className = 'mval emerald';
+    ef.className = 'mfill exp-shadow'; ef.style.width = `${Math.round(Math.max(10, p.exposure * 100))}%`;
   }
 
-  // Noise Bar
+  // Noise Ring meter
   const nw = $('hud-noise-word');
   const nf = $('hud-noise-fill');
-  const loud = p.noise >= 50 || state.detectionState === 'ALARM';
-  nw.textContent = loud ? 'LOUD' : p.noise >= 24 ? 'AUDIBLE' : 'SILENT';
-  nw.className = `bar-tag ${loud ? 'crimson' : 'emerald'}`;
-  nf.className = `bar-fill ${loud ? 'noise-loud' : 'noise-low'}`;
-  nf.style.width = `${Math.min(100, Math.max(8, Math.round(loud ? Math.max(85, p.noise) : p.noise)))}%`;
+  const loud = p.noise >= 48 || state.detectionState === 'BREACH';
+  nw.textContent = loud ? 'ECHOING' : p.noise >= 24 ? 'SOFT STEP' : 'SILENT';
+  nw.className = `mval ${loud ? 'crimson' : 'cyan'}`;
+  nf.className = `mfill ${loud ? 'noise-loud' : 'noise-calm'}`;
+  nf.style.width = `${Math.min(100, Math.max(8, Math.round(loud ? Math.max(82, p.noise) : p.noise)))}%`;
 
-  // Telemetry Counters
-  $('hud-loot').textContent = `${state.lootTaken}/${state.lootTotal}`;
+  // Gadget slots
   renderDots($('hud-coins'), state.coins, state.maxCoins);
-  renderDots($('hud-smokes'), state.smokes, state.maxSmokes);
+  renderDots($('hud-veils'), state.veils, state.maxVeils);
+  const st = $('hud-stance');
+  st.textContent = p.crouched ? 'CROUCHED' : 'UPRIGHT';
+  st.className = `stance-pill${p.crouched ? ' on' : ' up'}`;
 
-  const sp = $('hud-spotted');
-  sp.textContent = String(state.wingAlerts);
-  sp.className = `cnt-v mono ${state.wingAlerts === 0 ? 'emerald' : 'crimson'}`;
-  $('hud-recoveries').textContent = String(state.recoveries);
+  // Counters
+  $('hud-relics').textContent = `${state.relicsTaken} / ${state.relicsTotal}`;
+  const sap = $('hud-sapphire');
+  sap.textContent = state.sapphireTaken ? 'STOLEN' : 'SEALED';
+  sap.className = `mono ${state.sapphireTaken ? 'emerald' : 'cyan'}`;
 
-  const ex = $('hud-exit-status');
-  ex.textContent = state.ledgerStolen ? 'OPEN' : 'LOCKED';
-  ex.className = `cnt-v mono ${state.ledgerStolen ? 'emerald' : 'amber'}`;
+  const al = $('hud-alerts');
+  al.textContent = String(state.wingAlerts);
+  al.className = `mono ${state.wingAlerts === 0 ? 'emerald' : 'crimson'}`;
+
+  const el = $('hud-elevator');
+  el.textContent = state.sapphireTaken ? 'OPEN' : 'LOCKED';
+  el.className = `mono ${state.sapphireTaken ? 'emerald' : 'amber'}`;
 }
 
 function renderDots(el, cur, max) {
   el.innerHTML = '';
   for (let i = 0; i < Math.min(5, max); i++) {
     const d = document.createElement('span');
-    d.className = `dot${i >= cur ? ' used' : ''}`;
+    d.className = `gdot${i >= cur ? ' used' : ''}`;
     el.appendChild(d);
   }
 }
@@ -107,7 +122,6 @@ function renderDots(el, cur, max) {
 export function setOverlay(mode) {
   $('overlay-title').classList.toggle('hidden', mode !== 'title');
   $('overlay-tactics').classList.toggle('hidden', mode !== 'tactics');
-  $('overlay-victory').classList.toggle('hidden', mode !== 'victory');
   $('overlay-pause').classList.toggle('hidden', mode !== 'paused');
   $('overlay-gameover').classList.toggle('hidden', mode !== 'gameover');
 }
@@ -124,41 +138,33 @@ export function renderTacticsOverlay(state, onPick) {
   });
 }
 
-export function renderVictoryOverlay(state, onSelectWing) {
+export function renderDebriefLedger(state, onSelectWing) {
   const w = state.wing;
   const ghost = state.wingAlerts === 0;
-  $('vic-wing-kicker').textContent = `WING ${w.num} · ${w.title}`;
-  $('vic-rank-word').textContent = ghost ? 'VELVET GHOST' : 'SHADOW RUNNER';
-  $('vic-rank-copy').textContent = ghost
-    ? 'Never spotted. The Curfew Watch never knew you entered.'
-    : 'Extracted cleanly after breaking guard pursuit.';
-  $('vic-stars').textContent = ghost ? '★ ★ ★' : '★ ★ ☆';
-  $('vic-time').innerHTML = `${formatTime(state.time)} <em class="par">(par ${formatTime(w.par)})</em>`;
-  $('vic-spotted').textContent = String(state.wingAlerts);
-  $('vic-spotted').className = `mono ${ghost ? 'emerald' : 'crimson'}`;
-  $('vic-recoveries').textContent = String(state.recoveries);
-  $('vic-loot').textContent = `${state.lootTaken} / ${state.lootTotal}`;
+  const grade = ghost ? 'S' : state.wingAlerts === 1 ? 'A' : 'B';
+  $('dmt-wing').textContent = `WING ${w.roman} · ${w.title} — GOLDEN INFILTRATION TRAIL`;
+  $('deb-grade').textContent = grade;
+  $('deb-rating').textContent = `GHOST RATING: ${grade}`;
+  $('deb-subtitle').textContent = ghost ? `Unseen Phantom · ${w.title}` : `Velvet Escapee · ${w.title}`;
+  $('deb-time').textContent = formatTime(state.time);
+  $('deb-alerts').textContent = String(state.wingAlerts);
+  $('deb-alerts').className = `mono ${ghost ? 'emerald' : 'crimson'}`;
+  $('deb-coins').textContent = String(state.coinsUsed);
+  $('deb-relics').textContent = `${state.relicsTaken} / ${state.relicsTotal}`;
+  $('deb-bonus').textContent = `+${state.ghostBonus.toLocaleString('en-US')}`;
 
-  // Right column: 5-Wing Campaign Selector with GHOST / SHADOW grades
-  const list = $('vic-campaign-list');
+  const list = $('deb-wing-list');
   list.innerHTML = '';
   WINGS.forEach((wg, idx) => {
     const rec = state.campaign[idx];
     const row = document.createElement('div');
     const isCur = idx === state.wingIndex;
-    const locked = !rec && idx > state.wingIndex + 1;
-    row.className = `camp-row${isCur ? ' active' : ''}${locked ? ' locked' : ''}`;
-    const meta = rec ? `Best ${formatTime(rec.time)}` : idx === state.wingIndex + 1 ? 'Ready to infiltrate' : 'Escape previous wing to unlock';
-    const gradeHtml = rec
-      ? `<div class="camp-grade"><span class="camp-stars">${rec.stars}</span><span class="camp-rank${rec.rank === 'SHADOW' ? ' shadow' : ''}">${rec.rank}</span></div>`
-      : '';
-    const titleCase = wg.title.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
-    row.innerHTML = `<span class="camp-num">${wg.num}</span><div class="camp-info"><div class="camp-name">${titleCase}</div><div class="camp-meta">${meta}</div></div>${gradeHtml}`;
-    if (!locked) row.onclick = () => onSelectWing(idx);
+    row.className = `dw-row${isCur ? ' active' : ''}`;
+    const name = wg.title.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+    const tag = rec ? `RANK ${rec.grade}` : idx === state.wingIndex + 1 ? 'NEXT →' : 'LOCKED';
+    const cls = rec ? '' : idx === state.wingIndex + 1 ? 'next' : 'lock';
+    row.innerHTML = `<span class="dw-name">${wg.roman}. ${name}</span><span class="dw-tag ${cls}">${tag}</span>`;
+    if (rec || idx <= state.wingIndex + 1) row.onclick = () => onSelectWing(idx);
     list.appendChild(row);
   });
-
-  const perksHost = $('vic-perks');
-  const shown = state.perks.length ? state.perks : [{ name: 'Felt Soles' }, { name: 'Brass Resonator' }, { name: 'Nightshade Veil' }];
-  perksHost.innerHTML = shown.map((pk) => `<span class="ppill">✦ ${pk.name}</span>`).join('');
 }

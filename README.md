@@ -4,27 +4,27 @@
 
 # VELVET CURFEW
 
-An original Art-Deco 2.5D top-down tactical stealth heist game across five interconnected multi-room museum wings — built in plain ES modules, HTML5 Canvas, and procedural Web Audio API with zero build step and zero external requests.
+An original 1920s Art-Deco 2.5D top-down tactical stealth heist across five grand museum wings — authored in plain ES modules, HTML5 Canvas, and procedural Web Audio API with zero build step and zero external requests.
 
-## Five Multi-Room Museum Wings
-1. **The Meridian Rotunda** — Fluted pillars, chandelier pools, and your first Brass-Eye camera.
-2. **The Meridian Archive** — Interconnected counting-house vaults and crimson carpet halls.
-3. **The Glass Conservatory** — Transparent glasshouse walls, low-cover botanical planters, and twin Brass-Eye sweeps.
-4. **The Clockwork Foundry** — Six-room casting complex guarded by a pulsing crimson laser tripwire and rallying captains.
-5. **The Observatory Vault** — Final sanctum heist with twin cameras, laser gates, and Bell Hound patrols.
+## Five Art-Deco Grand Museum Wings
+1. **Wing I: Grand Rotunda** — Chevron marble parquet, crimson velvet runners, octagonal ivory columns, and gilded vitrines.
+2. **Wing II: Velvet Promenade** — Tufted crimson gallery settees, bronze folding screens, and sweeping laser beams guarding the Star Sapphire.
+3. **Wing III: Vault Vestibule** — High-tension escape corridors engineered for Velvet Smoke Veil sightline breaks.
+4. **Wing IV: Sapphire Hall** — Dual Brass-Eye camera domes and intersecting inspector lanes.
+5. **Wing V: Observatory Penthouse** — The culminating heist for the Crown Sapphire and roof Brass Elevator.
 
 ## Core Stealth Mechanics
-- **True 2D Raycast Visibility Cones (`game/js/vision.js`)**: Every Lantern Warden, Night Captain, Bell Hound, and sweeping Brass-Eye camera casts rays against tall walls, mahogany crates, and Velvet Smoke clouds — while glasshouse partitions and low crouch-cover planters preserve realistic sightlines.
-- **4-State Escalation & Recovery (`game/js/patrol.js`)**: `HIDDEN` → `SUSPICIOUS ?` (coin lures & `"WHAT WAS THAT?"`) → `ALARM !` (crimson shockwaves & `"ANSWERING ALARM"` neighbor rallies) → `SEARCHING` (orange sweep over `✕ LAST SEEN` while you slip back into cover).
-- **Light, Shadow, Low Cover & Gadgets (`game/js/detection.js`)**: Crouch (`SHIFT`) in shadow bays or emerald planters to vanish; toss Brass Coins (`LMB`/`SPACE`) to split sightlines; deploy Velvet Smoke (`Q`) to slice vision cones on demand.
-- **Between-Wing Stealth Perks & Procedural Audio (`game/js/audio.js`)**: Unlock perks between wings (*Felt Soles*, *Brass Resonator*, *Nightshade Veil*, and 6 more) backed by a synthesized Web Audio noir soundscape.
+- **True 2D Raycast Sightlines (`game/js/vision.js`)**: Lantern cones from Night Curators, Gallery Docents, Chief Inspectors, and Brass-Eye security domes cast pixel-accurate rays against brass-inlaid masonry walls, octagonal marble columns, gilded mahogany glass vitrines, ornate bronze screens, and drifting Velvet Smoke Veil clouds.
+- **4-State Curfew Escalation (`game/js/patrol.js`)**: `UNSEEN` → `CURIOUS · ?` (Brass Coin Lure `CLINK!` & `FOOTSTEP?`) → `CURFEW BREACH · !` (`CURFEW BELL!` convergence) → `SWEEPING` (translucent ghost silhouette at `LAST GLIMPSE`).
+- **Art-Deco Cover & Gadgets (`game/js/detection.js`)**: Crouch (`SHIFT`) behind tufted crimson velvet settees or inside stanchion rope `SHADOW ALCOVE`s; toss Brass Coin Lures (`Q`/`LMB`) with curved golden trajectories; deploy Violet-Silver Velvet Smoke Veils (`E`) to sever vision cones.
+- **Golden Infiltration Debrief (`game/js/render.js`, `game/js/ui.js`)**: Upon reaching the Brass Elevator, review your Ghost Rating (`S/A/B`) alongside your dashed golden infiltration path across the completed museum wing.
 
 ## Controls
 - `WASD` / `Arrows` — Move
-- `SHIFT` — Shadow Crouch (hide in low cover / silent footsteps)
-- `LMB` / `SPACE` — Toss Brass Coin Lure
-- `Q` — Deploy Velvet Smoke
-- `E` — Loot / Toggle Hide Stance
+- `SHIFT` — Crouch (conceal behind velvet settees & silent step)
+- `Q` / `LMB` / `SPACE` — Toss Brass Coin Lure
+- `E` — Release Velvet Smoke Veil
+- `F` — Loot / Toggle Crouch
 - `P` — Pause · `M` — Mute · `R` — Restart Wing
 
 ## Run Locally

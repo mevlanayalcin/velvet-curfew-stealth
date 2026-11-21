@@ -1,6 +1,6 @@
 [
-  { "name": "1-play.jpg", "query": "?shot=play&seed=1" },
-  { "name": "2-alarm.jpg", "query": "?shot=alarm&seed=1" },
-  { "name": "3-searching.jpg", "query": "?shot=searching&seed=1" },
-  { "name": "4-victory.jpg", "query": "?shot=victory&seed=1" }
+  { "name": "1-rotunda.jpg", "query": "?shot=rotunda&seed=1" },
+  { "name": "2-lure.jpg", "query": "?shot=lure&seed=1" },
+  { "name": "3-breach.jpg", "query": "?shot=breach&seed=1" },
+  { "name": "4-debrief.jpg", "query": "?shot=debrief&seed=1" }
 ]

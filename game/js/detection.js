@@ -1,15 +1,14 @@
-// Velvet Curfew v2 — Player Movement, Low-Cover Crouch Hiding, Loot, Coin Lures & Smoke
+// Velvet Curfew v2b — Infiltrator Movement, Alcove/Settee Hiding, Coin Lure, Velvet Veil & Trail
 
 import { STAGE_H, STAGE_W } from './levels.js';
-import { alertGuardsToSound } from './patrol.js';
+import { notifySound } from './patrol.js';
 
 export function defaultMods() {
   return {
     speedMult: 1, crouchSpeedMult: 1, noiseMult: 1, lureRadiusMult: 1,
     lureHoldBonus: 0, shadowLinger: 0, suspicionMult: 1, recoveryMult: 1,
     smokeRadiusMult: 1, smokeDurationBonus: 0, throwRangeMult: 1,
-    scoreMult: 1, lootRangeBonus: 0, bonusCoins: 0, bonusSmokes: 0,
-    recoveryBurst: false, coinRefund: false,
+    scoreMult: 1, lootRangeBonus: 0, bonusCoins: 0, bonusVeils: 0,
   };
 }
 
@@ -19,10 +18,10 @@ export function computeMods(perks) {
   return m;
 }
 
-export function resolveCircleRects(entity, obstacles) {
+export function resolveMovement(entity, obstacles) {
   for (let i = 0; i < obstacles.length; i++) {
     const o = obstacles[i];
-    if (o.kind === 'low') continue; // Player can slip into low planters/benches to crouch-hide
+    if (o.kind === 'settee') continue; // Crouch behind/beside tufted velvet settees
     const cx = Math.max(o.x, Math.min(entity.x, o.x + o.w));
     const cy = Math.max(o.y, Math.min(entity.y, o.y + o.h));
     const dx = entity.x - cx, dy = entity.y - cy;
@@ -41,31 +40,30 @@ export function evaluateStealthSurface(state, dt) {
   const p = state.player;
   const w = state.wing;
   p.onCarpet = (w.carpets || []).some((c) => p.x >= c.x && p.x <= c.x + c.w && p.y >= c.y && p.y <= c.y + c.h);
+  p.inVeil = state.veilsActive.some((s) => s.alpha > 0.22 && Math.hypot(p.x - s.x, p.y - s.y) <= s.r * 0.92);
 
-  p.inSmoke = state.smokesActive.some(
-    (s) => s.alpha > 0.22 && Math.hypot(p.x - s.x, p.y - s.y) <= s.r * 0.92
-  );
+  // Inside velvet stanchion shadow alcove?
+  p.inAlcove = (w.alcoves || []).some((a) => p.x >= a.x && p.x <= a.x + a.w && p.y >= a.y && p.y <= a.y + a.h);
 
-  // Check if inside or hugging low crouch-hide cover (planters/benches)
-  let lowCover = false;
+  // Tucked behind/beside tufted crimson velvet settee or ornate bronze folding screen?
+  let settee = false;
   for (const o of w.obstacles) {
-    if (o.kind !== 'low') continue;
-    const pad = 12;
+    if (o.kind !== 'settee' && o.kind !== 'screen') continue;
+    const pad = 16;
     if (p.x >= o.x - pad && p.x <= o.x + o.w + pad && p.y >= o.y - pad && p.y <= o.y + o.h + pad) {
-      lowCover = true;
+      settee = true;
       break;
     }
   }
-  p.inLowCover = lowCover;
+  p.inSettee = settee;
 
-  // Check warm chandelier light exposure
-  let lightIntensity = 0;
+  let lightAmt = 0;
   for (const l of w.lights) {
     const d = Math.hypot(p.x - l.x, p.y - l.y);
-    if (d < l.r * 0.92) lightIntensity = Math.max(lightIntensity, 1 - d / (l.r * 0.92));
+    if (d < l.r * 0.9) lightAmt = Math.max(lightAmt, 1 - d / (l.r * 0.9));
   }
 
-  const rawShadow = p.inSmoke || (lowCover && p.crouched) || lightIntensity < 0.18;
+  const rawShadow = p.inVeil || p.inAlcove || (settee && p.crouched) || lightAmt < 0.16;
   if (rawShadow) {
     p.shadowLingerTimer = state.mods.shadowLinger;
     p.inShadow = true;
@@ -75,11 +73,11 @@ export function evaluateStealthSurface(state, dt) {
   } else {
     p.inShadow = false;
   }
-  p.inLight = !p.inSmoke && !(lowCover && p.crouched) && lightIntensity >= 0.22;
-  p.visibility = p.inSmoke ? 0.05 : (lowCover && p.crouched) ? 0.08 : p.inShadow ? 0.14 : Math.min(1, 0.35 + lightIntensity * 0.65);
+  p.inLight = !p.inVeil && !(settee && p.crouched) && !p.inAlcove && lightAmt >= 0.22;
+  p.exposure = p.inVeil ? 0.06 : p.inAlcove || (settee && p.crouched) ? 0.12 : p.inShadow ? 0.18 : Math.min(1, 0.36 + lightAmt * 0.64);
 }
 
-export function updatePlayer(state, input, dt, sound, onToast, onWingClear) {
+export function updatePlayer(state, input, dt, sound, onRibbon, onWingClear) {
   const p = state.player;
   let mx = 0, my = 0;
   if (input.keys.has('KeyW') || input.keys.has('ArrowUp')) my -= 1;
@@ -88,107 +86,109 @@ export function updatePlayer(state, input, dt, sound, onToast, onWingClear) {
   if (input.keys.has('KeyD') || input.keys.has('ArrowRight')) mx += 1;
 
   p.crouched = input.keys.has('ShiftLeft') || input.keys.has('ShiftRight') || p.hiding;
-  if (p.sprintTimer > 0) p.sprintTimer = Math.max(0, p.sprintTimer - dt);
-
   const moving = mx !== 0 || my !== 0;
+
   if (moving) {
     const len = Math.hypot(mx, my);
     mx /= len; my /= len;
-    const base = p.crouched ? 78 * state.mods.crouchSpeedMult : 134;
-    const spd = base * state.mods.speedMult * (p.sprintTimer > 0 ? 1.3 : 1);
+    const spd = (p.crouched ? 78 * state.mods.crouchSpeedMult : 134) * state.mods.speedMult;
     p.x += mx * spd * dt;
     p.y += my * spd * dt;
     p.angle = Math.atan2(my, mx);
-    resolveCircleRects(p, state.wing.obstacles);
+    resolveMovement(p, state.wing.obstacles);
+
+    // Record golden infiltration breadcrumb every ~22px for Debrief map
+    const last = state.trail[state.trail.length - 1];
+    if (!last || Math.hypot(p.x - last.x, p.y - last.y) > 22) {
+      state.trail.push({ x: p.x, y: p.y });
+    }
   }
 
   evaluateStealthSurface(state, dt);
 
-  const targetNoise = !moving ? 6 : (p.crouched ? 12 : p.onCarpet ? 32 : 76) * state.mods.noiseMult * (p.sprintTimer > 0 ? 0.45 : 1);
-  p.noise += (targetNoise - p.noise) * Math.min(1, dt * 8);
+  const tgtNoise = !moving ? 6 : (p.crouched ? 12 : p.onCarpet ? 28 : 74) * state.mods.noiseMult;
+  p.noise += (tgtNoise - p.noise) * Math.min(1, dt * 8);
 
   if (moving) {
     p.stepTimer -= dt;
     if (p.stepTimer <= 0) {
       p.stepTimer = p.crouched ? 0.46 : 0.28;
       if (sound) sound.step(p.onCarpet, p.crouched);
-      if (!p.crouched && p.sprintTimer <= 0) {
-        const radius = (p.onCarpet ? 54 : 104) * state.mods.noiseMult;
-        state.ripples.push({ x: p.x, y: p.y, r: 8, maxR: radius, alpha: 0.52, kind: 'step' });
-        if (!p.onCarpet) alertGuardsToSound(state, p.x, p.y, radius, false, sound);
+      if (!p.crouched) {
+        const radius = (p.onCarpet ? 52 : 102) * state.mods.noiseMult;
+        state.ripples.push({ x: p.x, y: p.y, r: 8, maxR: radius, alpha: 0.5, kind: 'step' });
+        if (!p.onCarpet) notifySound(state, p.x, p.y, radius, false, sound);
       }
     }
-  } else {
-    p.stepTimer = 0.1;
-  }
+  } else p.stepTimer = 0.1;
 
-  // Pick up Vault Ledger & bonus gold loot stacks
-  const pickR = 28 + state.mods.lootRangeBonus;
-  if (!state.ledgerStolen && Math.hypot(p.x - state.wing.ledger.x, p.y - state.wing.ledger.y) < pickR) {
-    claimLedger(state, sound, onToast);
+  // Claim Star Sapphire & Gilded Museum Relics
+  const pickR = 30 + state.mods.lootRangeBonus;
+  if (!state.sapphireTaken && Math.hypot(p.x - state.wing.sapphire.x, p.y - state.wing.sapphire.y) < pickR) {
+    claimSapphire(state, sound, onRibbon);
   }
-  for (const item of state.lootItems) {
-    if (!item.taken && Math.hypot(p.x - item.x, p.y - item.y) < pickR) {
-      item.taken = true;
-      state.lootTaken += 1;
-      const pts = Math.round(350 * state.mods.scoreMult);
-      state.score += pts;
-      spawnSparks(state, item.x, item.y, '#f4d078', 10);
+  for (const r of state.relicItems) {
+    if (!r.taken && Math.hypot(p.x - r.x, p.y - r.y) < pickR) {
+      r.taken = true;
+      state.relicsTaken += 1;
+      state.score += Math.round(350 * state.mods.scoreMult);
+      spawnSparks(state, r.x, r.y, '#f0d084', 10);
       if (sound) sound.lootChime();
     }
   }
 
-  // Extract via emerald Exit once Ledger is stolen
-  const ex = state.wing.exit;
-  if (state.ledgerStolen && Math.hypot(p.x - ex.x, p.y - ex.y) < ex.r + p.r) {
+  // Board Brass Elevator Exit once Star Sapphire is secured
+  const el = state.wing.elevator;
+  if (state.sapphireTaken && Math.hypot(p.x - el.x, p.y - el.y) < el.r + p.r) {
     if (sound) sound.extractChord();
     if (onWingClear) onWingClear();
   }
 }
 
-export function claimLedger(state, sound, onToast) {
-  state.ledgerStolen = true;
-  state.lootTaken += 1;
-  const pts = Math.round(1000 * state.mods.scoreMult);
+export function claimSapphire(state, sound, onRibbon) {
+  state.sapphireTaken = true;
+  state.relicsTaken += 1;
+  const pts = Math.round(1200 * state.mods.scoreMult);
   state.score += pts;
-  spawnSparks(state, state.wing.ledger.x, state.wing.ledger.y, '#facc15', 18);
-  state.ripples.push({ x: state.wing.ledger.x, y: state.wing.ledger.y, r: 10, maxR: 68, alpha: 0.8, kind: 'loot' });
+  spawnSparks(state, state.wing.sapphire.x, state.wing.sapphire.y, '#38bdf8', 20);
+  state.ripples.push({ x: state.wing.sapphire.x, y: state.wing.sapphire.y, r: 10, maxR: 72, alpha: 0.85, kind: 'sapphire' });
   if (sound) sound.lootChime();
-  if (onToast) onToast(`${state.wing.ledger.label.toUpperCase()} STOLEN (+${pts}) — SLIP TO EXIT!`, false);
+  if (onRibbon) onRibbon(`STAR SAPPHIRE LIFTED (+${pts}) — BOARD THE BRASS ELEVATOR!`, false);
 }
 
-export function throwCoin(state, tx, ty, sound, onToast) {
+export function tossCoinLure(state, tx, ty, sound, onRibbon) {
   if (state.coins <= 0) {
-    if (onToast) onToast('NO BRASS COINS REMAINING', false);
+    if (onRibbon) onRibbon('NO BRASS COINS LEFT', false);
     return false;
   }
   const p = state.player;
-  const maxDist = 230 * state.mods.throwRangeMult;
+  const maxD = 235 * state.mods.throwRangeMult;
   let dx = tx - p.x, dy = ty - p.y;
   const dist = Math.hypot(dx, dy);
-  if (dist < 18) { dx = Math.cos(p.angle) * 130; dy = Math.sin(p.angle) * 130; }
-  else if (dist > maxDist) { dx = (dx / dist) * maxDist; dy = (dy / dist) * maxDist; }
+  if (dist < 18) { dx = Math.cos(p.angle) * 135; dy = Math.sin(p.angle) * 135; }
+  else if (dist > maxD) { dx = (dx / dist) * maxD; dy = (dy / dist) * maxD; }
   const lx = Math.max(24, Math.min(STAGE_W - 24, p.x + dx));
   const ly = Math.max(24, Math.min(STAGE_H - 24, p.y + dy));
   state.coins -= 1;
-  state.coinsInFlight.push({ sx: p.x, sy: p.y, tx: lx, ty: ly, t: 0, dur: 0.32 });
+  state.coinsUsed += 1;
+  state.coinsInFlight.push({ sx: p.x, sy: p.y, tx: lx, ty: ly, t: 0, dur: 0.34 });
   if (sound) sound.step(true, true);
   return true;
 }
 
-export function deploySmoke(state, sound, onToast) {
-  if (state.smokes <= 0) {
-    if (onToast) onToast('NO VELVET SMOKE CHARGES', false);
+export function popVelvetVeil(state, sound, onRibbon) {
+  if (state.veils <= 0) {
+    if (onRibbon) onRibbon('NO VELVET VEIL CHARGES LEFT', false);
     return false;
   }
   const p = state.player;
-  state.smokes -= 1;
-  const dur = 6.5 + state.mods.smokeDurationBonus;
-  const maxR = 64 * state.mods.smokeRadiusMult;
-  state.smokesActive.push({ x: p.x, y: p.y, r: 16, maxR, timer: dur, duration: dur, alpha: 0.9 });
-  spawnSparks(state, p.x, p.y, '#a78bfa', 14);
+  state.veils -= 1;
+  const dur = 6.8 + state.mods.smokeDurationBonus;
+  const maxR = 68 * state.mods.smokeRadiusMult;
+  state.veilsActive.push({ x: p.x, y: p.y, r: 16, maxR, timer: dur, duration: dur, alpha: 0.92 });
+  spawnSparks(state, p.x, p.y, '#c4b5fd', 16);
   if (sound) sound.smokeHiss();
-  if (onToast) onToast('VELVET SMOKE DEPLOYED — SIGHTLINES BROKEN', false);
+  if (onRibbon) onRibbon('VELVET VEIL RELEASED — SIGHTLINES SEVERED', false);
   return true;
 }
 
@@ -205,29 +205,34 @@ export function updateEffects(state, dt, sound) {
     const c = state.coinsInFlight[i];
     c.t += dt;
     if (c.t >= c.dur) {
-      const lureR = 175 * state.mods.lureRadiusMult;
+      const lureR = 178 * state.mods.lureRadiusMult;
+      state.lastCoinArc = { sx: c.sx, sy: c.sy, tx: c.tx, ty: c.ty, alpha: 0.85 };
       state.ripples.push(
-        { x: c.tx, y: c.ty, r: 14, maxR: lureR, alpha: 0.96, kind: 'coin', label: 'WHAT WAS THAT?' },
-        { x: c.tx, y: c.ty, r: 4, maxR: lureR * 0.65, alpha: 0.82, kind: 'coin' }
+        { x: c.tx, y: c.ty, r: 14, maxR: lureR, alpha: 0.96, kind: 'coin', label: 'CLINK!' },
+        { x: c.tx, y: c.ty, r: 4, maxR: lureR * 0.62, alpha: 0.82, kind: 'coin' }
       );
-      spawnSparks(state, c.tx, c.ty, '#facc15', 8);
+      spawnSparks(state, c.tx, c.ty, '#f0d084', 10);
       if (sound) sound.coinClink();
-      alertGuardsToSound(state, c.tx, c.ty, lureR, true, sound);
+      notifySound(state, c.tx, c.ty, lureR, true, sound);
       state.coinsInFlight.splice(i, 1);
     }
   }
+  if (state.lastCoinArc && !state.shotMode) {
+    state.lastCoinArc.alpha -= dt * 0.55;
+    if (state.lastCoinArc.alpha <= 0) state.lastCoinArc = null;
+  }
   for (let i = state.ripples.length - 1; i >= 0; i--) {
     const rp = state.ripples[i];
-    rp.r += (rp.maxR - rp.r) * Math.min(1, dt * 3.1) + 26 * dt;
-    rp.alpha -= dt * (rp.kind === 'coin' ? 0.46 : 0.88);
+    rp.r += (rp.maxR - rp.r) * Math.min(1, dt * 3.0) + 24 * dt;
+    rp.alpha -= dt * (rp.kind === 'coin' ? 0.44 : 0.86);
     if (rp.alpha <= 0.02 || rp.r >= rp.maxR) state.ripples.splice(i, 1);
   }
-  for (let i = state.smokesActive.length - 1; i >= 0; i--) {
-    const sm = state.smokesActive[i];
-    sm.r += (sm.maxR - sm.r) * Math.min(1, dt * 5.2);
+  for (let i = state.veilsActive.length - 1; i >= 0; i--) {
+    const sm = state.veilsActive[i];
+    sm.r += (sm.maxR - sm.r) * Math.min(1, dt * 5.0);
     sm.timer -= dt;
-    sm.alpha = sm.timer < 1.4 ? Math.max(0, (sm.timer / 1.4) * 0.9) : 0.9;
-    if (sm.timer <= 0) state.smokesActive.splice(i, 1);
+    sm.alpha = sm.timer < 1.5 ? Math.max(0, (sm.timer / 1.5) * 0.9) : 0.9;
+    if (sm.timer <= 0) state.veilsActive.splice(i, 1);
   }
   for (let i = state.particles.length - 1; i >= 0; i--) {
     const pt = state.particles[i];

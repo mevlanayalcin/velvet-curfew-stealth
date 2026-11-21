@@ -10,7 +10,7 @@ import { buildDossier } from './vendor/makefun-game.ts';
 const REPO_ROOT = fileURLToPath(new URL('.', import.meta.url));
 const OUTPUT_DIR = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
-const REQUIRED_SHOTS = ['1-play.jpg', '2-alarm.jpg', '3-searching.jpg', '4-victory.jpg'] as const;
+const REQUIRED_SHOTS = ['1-rotunda.jpg', '2-lure.jpg', '3-breach.jpg', '4-debrief.jpg'] as const;
 
 const GATE_CAPS = {
   text_max_bytes: 163840,

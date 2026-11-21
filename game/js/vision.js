@@ -1,4 +1,4 @@
-// Velvet Curfew v2 — True 2D Raycast Visibility Polygon & Sightline Engine (Walls, Crates, Smoke, Lasers)
+// Velvet Curfew v2b — True 2D Raycast Visibility Engine (Columns, Vitrines, Screens, Velvet Veil)
 
 const EPS = 0.0008;
 
@@ -12,13 +12,13 @@ export function angleDiff(a, b) {
   return normalizeAngle(a - b);
 }
 
-// Build sight-blocking geometry ONLY from tall opaque obstacles (walls, crates, pillars).
-// Glass partitions & low crouch-cover planters let sight rays pass over!
+// Tall sight blockers: walls, fluted columns, mahogany vitrines, and bronze folding screens.
+// Tufted velvet settees ('settee') are low crouch-hide cover that cones sweep over!
 export function buildSegments(obstacles) {
   const segs = [];
   const corners = [];
   for (const r of obstacles) {
-    if (r.kind === 'low' || r.kind === 'glass') continue;
+    if (r.kind === 'settee') continue;
     const x1 = r.x, y1 = r.y, x2 = r.x + r.w, y2 = r.y + r.h;
     segs.push([x1, y1, x2, y1], [x2, y1, x2, y2], [x2, y2, x1, y2], [x1, y2, x1, y1]);
     corners.push([x1, y1], [x2, y1], [x2, y2], [x1, y2]);
@@ -27,12 +27,10 @@ export function buildSegments(obstacles) {
 }
 
 function raySegT(ox, oy, dx, dy, ax, ay, bx, by) {
-  const sx = bx - ax;
-  const sy = by - ay;
+  const sx = bx - ax, sy = by - ay;
   const denom = dx * sy - dy * sx;
   if (Math.abs(denom) < 1e-8) return Infinity;
-  const qx = ax - ox;
-  const qy = ay - oy;
+  const qx = ax - ox, qy = ay - oy;
   const t = (qx * sy - qy * sx) / denom;
   if (t < 0) return Infinity;
   const u = (qx * dy - qy * dx) / denom;
@@ -51,17 +49,16 @@ function rayCircleT(ox, oy, dx, dy, cx, cy, r) {
   return t >= 0 ? t : Infinity;
 }
 
-export function castRay(ox, oy, angle, maxDist, segs, smokes = []) {
-  const dx = Math.cos(angle);
-  const dy = Math.sin(angle);
+export function castRay(ox, oy, angle, maxDist, segs, veils = []) {
+  const dx = Math.cos(angle), dy = Math.sin(angle);
   let best = maxDist;
   for (let i = 0; i < segs.length; i++) {
     const s = segs[i];
     const t = raySegT(ox, oy, dx, dy, s[0], s[1], s[2], s[3]);
     if (t < best) best = t;
   }
-  for (let i = 0; i < smokes.length; i++) {
-    const sm = smokes[i];
+  for (let i = 0; i < veils.length; i++) {
+    const sm = veils[i];
     if (sm.alpha < 0.2) continue;
     const t = rayCircleT(ox, oy, dx, dy, sm.x, sm.y, sm.r * 0.88);
     if (t < best) best = t;
@@ -69,17 +66,15 @@ export function castRay(ox, oy, angle, maxDist, segs, smokes = []) {
   return { x: ox + dx * best, y: oy + dy * best, dist: best };
 }
 
-export function computeVisionPolygon(ox, oy, facing, fov, range, geom, smokes = []) {
+export function computeVisionPolygon(ox, oy, facing, fov, range, geom, veils = []) {
   const half = fov * 0.5;
   const angles = [];
-  const steps = 18;
-  for (let i = 0; i <= steps; i++) angles.push(-half + (fov * i) / steps);
+  for (let i = 0; i <= 18; i++) angles.push(-half + (fov * i) / 18);
 
   const rangePad = (range + 22) * (range + 22);
   const corners = geom.corners;
   for (let i = 0; i < corners.length; i++) {
-    const vx = corners[i][0] - ox;
-    const vy = corners[i][1] - oy;
+    const vx = corners[i][0] - ox, vy = corners[i][1] - oy;
     if (vx * vx + vy * vy > rangePad) continue;
     const rel = angleDiff(Math.atan2(vy, vx), facing);
     if (rel >= -half - 0.02 && rel <= half + 0.02) {
@@ -89,8 +84,8 @@ export function computeVisionPolygon(ox, oy, facing, fov, range, geom, smokes = 
     }
   }
 
-  for (let i = 0; i < smokes.length; i++) {
-    const sm = smokes[i];
+  for (let i = 0; i < veils.length; i++) {
+    const sm = veils[i];
     if (sm.alpha < 0.2) continue;
     const vx = sm.x - ox, vy = sm.y - oy;
     const d = Math.hypot(vx, vy);
@@ -110,21 +105,19 @@ export function computeVisionPolygon(ox, oy, facing, fov, range, geom, smokes = 
     const rel = angles[i];
     if (rel - prev < 0.0003) continue;
     prev = rel;
-    const hit = castRay(ox, oy, facing + rel, range, geom.segs, smokes);
+    const hit = castRay(ox, oy, facing + rel, range, geom.segs, veils);
     pts.push({ x: hit.x, y: hit.y });
   }
   return pts;
 }
 
-export function hasLineOfSight(ox, oy, tx, ty, geom, smokes = []) {
+export function hasLineOfSight(ox, oy, tx, ty, geom, veils = []) {
   const dx = tx - ox, dy = ty - oy;
   const dist = Math.hypot(dx, dy);
   if (dist < 1) return true;
-  const hit = castRay(ox, oy, Math.atan2(dy, dx), dist, geom.segs, smokes);
-  return hit.dist >= dist - 3;
+  return castRay(ox, oy, Math.atan2(dy, dx), dist, geom.segs, veils).dist >= dist - 3;
 }
 
-// Segment-to-point distance for pulsing Laser Tripwire breach check
 export function pointToSegmentDist(px, py, x1, y1, x2, y2) {
   const dx = x2 - x1, dy = y2 - y1;
   const lenSq = dx * dx + dy * dy;

@@ -3,225 +3,224 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=1024, initial-scale=1.0" />
-  <title>Velvet Curfew — Art-Deco Tactical Stealth</title>
+  <title>Velvet Curfew — Art-Deco Grand Museum Stealth</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <div id="app" class="app-frame">
-    <!-- Top Header Strip (36px) -->
+    <!-- Top Art-Deco Brass Header (36px) -->
     <header class="top-bar">
       <div class="top-left">
-        <span id="hud-wing-num" class="wing-num-badge">3</span>
-        <span id="hud-wing-name" class="wing-title">THE GLASS CONSERVATORY</span>
-        <span class="obj-diamond">◆</span>
-        <span id="hud-objective" class="top-objective">OBJECTIVE: Steal the Vault Ledger, then slip out the Exit</span>
+        <span id="hud-wing-roman" class="roman-seal">I</span>
+        <span id="hud-wing-name" class="wing-title">GRAND ROTUNDA</span>
+        <span class="brass-pip">◆</span>
+        <span id="hud-objective" class="top-objective">Slip unseen to the Star Sapphire vitrine, then board the Brass Elevator</span>
       </div>
       <div class="top-right">
-        <span class="top-stat"><em class="k">TIME</em> <strong id="hud-timer" class="mono">01:04</strong></span>
-        <span class="top-stat"><em class="k">SCORE</em> <strong id="hud-score" class="mono gold">4,850</strong></span>
-        <button id="btn-mute" class="mute-btn" title="Toggle Audio (M)">SFX</button>
+        <span class="top-metric"><em class="mk">GALLERY</em> <strong id="hud-gallery" class="mono">I / V</strong></span>
+        <span class="top-metric"><em class="mk">TIMER</em> <strong id="hud-timer" class="mono">00:48</strong></span>
+        <span class="top-metric"><em class="mk">GHOST BONUS</em> <strong id="hud-score" class="mono gold">+2,500</strong></span>
+        <button id="btn-mute" class="mute-btn" title="Mute Audio (M)">SFX</button>
       </div>
     </header>
 
-    <!-- Main Split Stage (576px): 820px Map Canvas + 204px Right HUD -->
+    <!-- Main 80% Canvas + 20% Art-Deco Dossier HUD (576px) -->
     <main class="main-split">
       <section class="stage-wrap">
         <canvas id="stage" width="820" height="576"></canvas>
 
-        <!-- Dynamic Alert / Toast Ribbon -->
-        <div id="alert-ribbon" class="alert-ribbon hidden">SPOTTED! Break line of sight or drop Smoke [Q].</div>
+        <!-- Dynamic Curfew Banner (breach / pickup) -->
+        <div id="curfew-ribbon" class="curfew-ribbon hidden">CURFEW BELL! Slip behind marble cover or pop Velvet Veil [E].</div>
 
-        <!-- Live Game Title Overlay (playable in normal mode) -->
+        <!-- Debrief Floating Map Header (only in debrief shot/mode) -->
+        <div id="debrief-map-tag" class="debrief-map-tag hidden">
+          <span class="dmt-gold">✦ INFILTRATION LOG</span>
+          <span id="dmt-wing">WING I · GRAND ROTUNDA — GOLDEN TRAIL VERIFIED</span>
+        </div>
+
+        <!-- Opening Title Card (live play start) -->
         <div id="overlay-title" class="stage-overlay hidden">
-          <div class="deco-card title-card">
-            <div class="kicker">GRAND MERIDIAN MUSEUM · MIDNIGHT HEIST</div>
-            <h1 class="hero-title">VELVET CURFEW</h1>
-            <p class="hero-sub">Outsmart Lantern Wardens, Brass-Eye cameras, and pulsing laser tripwires across 5 architectural wings.</p>
-            <div class="howto-strip">
-              <div class="howto-box"><strong>01 HIDE</strong><span>Hug shadows &amp; crouch in low cover.</span></div>
-              <div class="howto-box"><strong>02 LURE</strong><span>Toss brass coins to split sightlines.</span></div>
-              <div class="howto-box"><strong>03 ESCAPE</strong><span>Lift the Vault Ledger &amp; reach Exit.</span></div>
+          <div class="deco-modal title-modal">
+            <div class="deco-rule"><span>✦ GRAND MERIDIAN MUSEUM · 1928 ✦</span></div>
+            <h1 class="hero-logo">VELVET CURFEW</h1>
+            <p class="hero-desc">Slip across chevron marble and crimson velvet runners, distract curators with brass coins, veil sightlines in violet mist, and vanish with the Star Sapphire.</p>
+            <div class="tri-steps">
+              <div class="step-box"><b>I · CONCEAL</b><span>Crouch behind tufted velvet settees &amp; bronze folding screens.</span></div>
+              <div class="step-box"><b>II · MISDIRECT</b><span>Toss a Brass Coin [Q] or pop Velvet Veil [E] to sever lantern cones.</span></div>
+              <div class="step-box"><b>III · EXTRACT</b><span>Lift the Star Sapphire &amp; reach the gilded Brass Elevator unseen.</span></div>
             </div>
             <div id="title-wing-list" class="wing-pills"></div>
             <div class="btn-row">
-              <button id="btn-start" class="btn-primary">BEGIN HEIST [SPACE]</button>
+              <button id="btn-start" class="btn-brass">ENTER GALLERY [SPACE]</button>
             </div>
           </div>
         </div>
 
-        <!-- Between-Wing Perk Draft Overlay -->
+        <!-- Between-Wing Perk Draft -->
         <div id="overlay-tactics" class="stage-overlay hidden">
-          <div class="deco-card tactics-card">
-            <div id="tactics-kicker" class="kicker emerald">WING CLEARED · CHOOSE STEALTH PERK</div>
-            <h2 class="modal-h2">SELECT 1 OF 3 PERKS</h2>
+          <div class="deco-modal tactics-modal">
+            <div class="deco-rule"><span>GALLERY CLEARED · EQUIP STEALTH PERK</span></div>
+            <h2 class="modal-h2">CHOOSE 1 OF 3 ARTIFACTS</h2>
             <div id="tactics-cards" class="perk-grid"></div>
           </div>
         </div>
 
-        <!-- Split Victory & 5-Wing Campaign Overlay (?shot=victory) -->
-        <div id="overlay-victory" class="stage-overlay victory-overlay hidden">
-          <div class="victory-split">
-            <div class="deco-card victory-left">
-              <div id="vic-wing-kicker" class="kicker">WING 3 · THE GLASS CONSERVATORY</div>
-              <div class="vic-escaped">ESCAPED</div>
-              <div class="vic-emblem" aria-hidden="true">
-                <svg viewBox="0 0 120 56" width="114" height="52">
-                  <line x1="10" y1="28" x2="36" y2="28" stroke="#d4a84f" stroke-width="1.4" opacity="0.7"/>
-                  <line x1="84" y1="28" x2="110" y2="28" stroke="#d4a84f" stroke-width="1.4" opacity="0.7"/>
-                  <polygon points="60,4 82,28 60,52 38,28" fill="#10253c" stroke="#38bdf8" stroke-width="2"/>
-                  <polygon points="60,11 75,28 60,45 45,28" fill="#38bdf8" opacity="0.28" stroke="#f2cc78" stroke-width="1.4"/>
-                  <polygon points="60,18 68,28 60,38 52,28" fill="#f2cc78"/>
-                  <circle cx="28" cy="28" r="2.6" fill="#38bdf8"/>
-                  <circle cx="92" cy="28" r="2.6" fill="#38bdf8"/>
-                </svg>
-              </div>
-              <div id="vic-rank-word" class="vic-rank">VELVET GHOST</div>
-              <p id="vic-rank-copy" class="vic-copy">Never spotted. The Curfew Watch never knew you entered.</p>
-              <div id="vic-stars" class="vic-stars">★ ★ ★</div>
-              <div class="vic-metrics">
-                <div class="vm-row"><span>TIME</span><strong id="vic-time" class="mono">01:34 <em class="par">(par 01:50)</em></strong></div>
-                <div class="vm-row"><span>TIMES SPOTTED</span><strong id="vic-spotted" class="mono emerald">0</strong></div>
-                <div class="vm-row"><span>RECOVERIES</span><strong id="vic-recoveries" class="mono gold">3</strong></div>
-                <div class="vm-row"><span>LOOT</span><strong id="vic-loot" class="mono gold">4 / 4</strong></div>
-              </div>
-              <div class="vic-actions">
-                <button id="btn-next-wing" class="btn-primary">NEXT WING ↵</button>
-                <button id="btn-retry-vic" class="btn-secondary">RETRY (R)</button>
-                <button id="btn-title-vic" class="btn-secondary">TITLE</button>
-              </div>
-            </div>
-
-            <div class="victory-right">
-              <div class="camp-head">CAMPAIGN · 5 WINGS</div>
-              <div id="vic-campaign-list" class="camp-list"></div>
-              <div class="perks-strip">
-                <div class="perks-strip-head">ACTIVE STEALTH PERKS</div>
-                <div id="vic-perks" class="perks-pills"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Pause Overlay -->
+        <!-- Pause Modal -->
         <div id="overlay-pause" class="stage-overlay hidden">
-          <div class="deco-card mini-card">
-            <div class="kicker">CURFEW PAUSED</div>
-            <h2 class="modal-h2">IN SHADOW</h2>
+          <div class="deco-modal mini-modal">
+            <div class="deco-rule"><span>CURFEW SUSPENDED</span></div>
+            <h2 class="modal-h2">PAUSED</h2>
             <div class="btn-row">
-              <button id="btn-resume" class="btn-primary">RESUME [P]</button>
-              <button id="btn-restart-pause" class="btn-secondary">RESTART [R]</button>
+              <button id="btn-resume" class="btn-brass">RESUME [P]</button>
+              <button id="btn-restart-pause" class="btn-ghost">RESTART [R]</button>
             </div>
           </div>
         </div>
 
-        <!-- Game Over Overlay -->
+        <!-- Game Over Modal -->
         <div id="overlay-gameover" class="stage-overlay hidden">
-          <div class="deco-card mini-card">
-            <div class="kicker crimson">LOCKDOWN TRIGGERED</div>
-            <h2 class="modal-h2">APPREHENDED</h2>
-            <p id="gameover-reason" class="vic-copy">Caught under full museum alarm.</p>
+          <div class="deco-modal mini-modal">
+            <div class="deco-rule crimson"><span>CURFEW LOCKDOWN</span></div>
+            <h2 class="modal-h2">DETAINED</h2>
+            <p id="gameover-reason" class="hero-desc">Museum security sealed the gallery doors.</p>
             <div class="btn-row">
-              <button id="btn-retry-go" class="btn-primary">RETRY WING [R]</button>
-              <button id="btn-title-go" class="btn-secondary">TITLE</button>
+              <button id="btn-retry-go" class="btn-brass">RETRY WING [R]</button>
+              <button id="btn-title-go" class="btn-ghost">TITLE</button>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- Single Sleek Right HUD Panel (204px) -->
-      <aside class="right-hud">
-        <div class="hud-sec">
-          <div class="hud-label">DETECTION</div>
-          <div id="hud-state-banner" class="state-banner suspicious">SUSPICIOUS ?</div>
-          <div id="hud-state-sub" class="state-sub">Something caught an eye. Freeze.</div>
-
-          <div class="alarm-row">
-            <span class="hud-k">ALARM</span>
-            <div id="hud-alarm-pips" class="alarm-pips">
-              <span class="apip"></span><span class="apip"></span><span class="apip"></span>
-            </div>
-            <span id="hud-alarm-word" class="alarm-word">QUIET</span>
+      <!-- Right 20% Art-Deco Dossier Panel (204px) — swaps cleanly to Debrief Ledger on Victory! -->
+      <aside id="right-hud" class="right-hud">
+        <!-- LIVE STEALTH DOSSIER -->
+        <div id="hud-live-view" class="hud-view">
+          <div class="hud-crest">
+            <span class="crest-line"></span>
+            <span class="crest-word">VELVET CURFEW</span>
+            <span class="crest-line"></span>
           </div>
 
-          <div class="bar-wrap">
-            <div class="bar-meta">
-              <span class="hud-k">VISIBILITY</span>
-              <span id="hud-vis-word" class="bar-tag emerald">IN SHADOW</span>
+          <div class="hud-sec">
+            <div id="hud-state-badge" class="state-badge unseen">UNSEEN</div>
+            <div id="hud-state-copy" class="state-copy">Hidden in midnight velvet.</div>
+
+            <div class="bell-row">
+              <span class="hk">CURFEW BELLS</span>
+              <div id="hud-bells" class="bell-pips">
+                <span class="bpip"></span><span class="bpip"></span><span class="bpip"></span>
+              </div>
+              <span id="hud-bell-word" class="bell-word">HUSHED</span>
             </div>
-            <div class="bar-track"><div id="hud-vis-fill" class="bar-fill vis-shadow" style="width:12%"></div></div>
+
+            <div class="meter-row">
+              <div class="meter-meta">
+                <span class="hk">EXPOSURE</span>
+                <span id="hud-exp-word" class="mval emerald">SHADOW ALCOVE</span>
+              </div>
+              <div class="mtrack"><div id="hud-exp-fill" class="mfill exp-shadow" style="width:12%"></div></div>
+            </div>
+
+            <div class="meter-row">
+              <div class="meter-meta">
+                <span class="hk">NOISE RING</span>
+                <span id="hud-noise-word" class="mval cyan">SILENT</span>
+              </div>
+              <div class="mtrack"><div id="hud-noise-fill" class="mfill noise-calm" style="width:10%"></div></div>
+            </div>
           </div>
 
-          <div class="bar-wrap">
-            <div class="bar-meta">
-              <span class="hud-k">NOISE</span>
-              <span id="hud-noise-word" class="bar-tag cyan">SILENT</span>
+          <div class="hud-sec gadgets-sec">
+            <div class="sec-h">STEALTH GADGETS</div>
+            <div class="gslot">
+              <span class="gkey"><kbd>Q</kbd> COIN LURE</span>
+              <span id="hud-coins" class="gdots gold-dots"></span>
             </div>
-            <div class="bar-track"><div id="hud-noise-fill" class="bar-fill noise-low" style="width:10%"></div></div>
+            <div class="gslot">
+              <span class="gkey"><kbd>E</kbd> VELVET VEIL</span>
+              <span id="hud-veils" class="gdots violet-dots"></span>
+            </div>
+            <div class="gslot">
+              <span class="gkey"><kbd>SHIFT</kbd> CROUCH</span>
+              <span id="hud-stance" class="stance-pill on">LOW</span>
+            </div>
+          </div>
+
+          <div class="hud-sec stats-pair">
+            <div class="sp-cell"><span class="hk">RELICS</span><strong id="hud-relics" class="mono gold">1 / 4</strong></div>
+            <div class="sp-cell"><span class="hk">SAPPHIRE</span><strong id="hud-sapphire" class="mono cyan">SEALED</strong></div>
+            <div class="sp-cell"><span class="hk">ALERTS</span><strong id="hud-alerts" class="mono emerald">0</strong></div>
+            <div class="sp-cell"><span class="hk">ELEVATOR</span><strong id="hud-elevator" class="mono amber">LOCKED</strong></div>
+          </div>
+
+          <div class="hud-sec key-sec">
+            <div class="sec-h">GALLERY KEY</div>
+            <ul class="key-list">
+              <li><span class="ki ki-curator"></span><span>Curator + lantern cone</span></li>
+              <li><span class="ki ki-eye"></span><span>Brass-Eye dome (teal)</span></li>
+              <li><span class="ki ki-laser"></span><span>Laser tripwire beam</span></li>
+              <li><span class="ki ki-settee"></span><span>Velvet settee (crouch hide)</span></li>
+              <li><span class="ki ki-vitrine"></span><span>Glass vitrine / Column</span></li>
+              <li><span class="ki ki-sapphire"></span><span>Star Sapphire vitrine</span></li>
+              <li><span class="ki ki-elev"></span><span>Brass Elevator exit</span></li>
+            </ul>
+          </div>
+
+          <div class="protocol-micro">
+            <span class="pm-win"><b>WIN:</b> Sapphire → Elevator</span>
+            <span class="pm-lose"><b>LOSE:</b> 3 Bells / Caught</span>
           </div>
         </div>
 
-        <div class="hud-sec counters-grid">
-          <div class="cnt-cell">
-            <span class="hud-k">LOOT</span>
-            <strong id="hud-loot" class="cnt-v gold mono">2/4</strong>
+        <!-- SPLIT DEBRIEF LEDGER (Right 25% panel when ?shot=debrief or Victory!) -->
+        <div id="hud-debrief-view" class="hud-view debrief-view hidden">
+          <div class="deb-kicker">CURFEW BEATEN</div>
+          <div class="deb-seal-wrap">
+            <div class="deb-seal">
+              <span id="deb-grade" class="deb-letter">S</span>
+            </div>
+            <div id="deb-rating" class="deb-rating">GHOST RATING: S</div>
+            <div id="deb-subtitle" class="deb-sub">Unseen Phantom · Grand Rotunda</div>
           </div>
-          <div class="cnt-cell">
-            <span class="hud-k">COINS</span>
-            <span id="hud-coins" class="dot-row gold-dots"></span>
-          </div>
-          <div class="cnt-cell">
-            <span class="hud-k">SMOKE</span>
-            <span id="hud-smokes" class="dot-row violet-dots"></span>
-          </div>
-          <div class="cnt-cell">
-            <span class="hud-k">SPOTTED</span>
-            <strong id="hud-spotted" class="cnt-v emerald mono">0</strong>
-          </div>
-          <div class="cnt-cell">
-            <span class="hud-k">RECOVERIES</span>
-            <strong id="hud-recoveries" class="cnt-v cyan mono">2</strong>
-          </div>
-          <div class="cnt-cell">
-            <span class="hud-k">EXIT</span>
-            <strong id="hud-exit-status" class="cnt-v amber mono">LOCKED</strong>
-          </div>
-        </div>
 
-        <div class="hud-sec legend-sec">
-          <div class="hud-label">LEGEND</div>
-          <ul class="legend-list">
-            <li><span class="lg-ico lg-warden"></span><span>Lantern Warden + cone</span></li>
-            <li><span class="lg-ico lg-cam"></span><span>Brass-Eye camera (teal)</span></li>
-            <li><span class="lg-ico lg-laser"></span><span>Laser tripwire (pulses)</span></li>
-            <li><span class="lg-ico lg-low"></span><span>Low cover: crouch to hide</span></li>
-            <li><span class="lg-ico lg-tall"></span><span>Pillar/Crate: blocks sight</span></li>
-            <li><span class="lg-ico lg-lamp"></span><span>Lamp light: exposes you</span></li>
-            <li><span class="lg-ico lg-ledger"></span><span>Vault Ledger objective</span></li>
-            <li><span class="lg-ico lg-exit"></span><span>Roof Exit portal</span></li>
-          </ul>
-        </div>
+          <div class="deb-ledger">
+            <div class="dl-row"><span>TIME</span><strong id="deb-time" class="mono">01:18</strong></div>
+            <div class="dl-row"><span>ALERTS</span><strong id="deb-alerts" class="mono emerald">0</strong></div>
+            <div class="dl-row"><span>COINS USED</span><strong id="deb-coins" class="mono gold">2</strong></div>
+            <div class="dl-row"><span>RELICS</span><strong id="deb-relics" class="mono gold">4 / 4</strong></div>
+            <div class="dl-row highlight"><span>GHOST BONUS</span><strong id="deb-bonus" class="mono gold">+2,500</strong></div>
+          </div>
 
-        <div class="rules-micro">
-          <span class="rm-win"><b>WIN:</b> Ledger → Exit</span>
-          <span class="rm-lose"><b>LOSE:</b> 3 Alarms / Caught</span>
+          <div class="deb-wings">
+            <div class="sec-h">MUSEUM LEDGER · 5 WINGS</div>
+            <div id="deb-wing-list" class="dw-list"></div>
+          </div>
+
+          <div class="deb-btns">
+            <button id="btn-next-wing" class="btn-brass btn-full">NEXT WING ↵</button>
+            <div class="deb-btn-pair">
+              <button id="btn-retry-deb" class="btn-ghost">REPLAY</button>
+              <button id="btn-title-deb" class="btn-ghost">TITLE</button>
+            </div>
+          </div>
         </div>
       </aside>
     </main>
 
-    <!-- Bottom Keycap Legend Bar (28px) -->
+    <!-- Bottom Art-Deco Keycap Strip (28px) -->
     <footer class="bottom-bar">
       <span><kbd>WASD</kbd> Move</span>
-      <span class="sep">·</span>
-      <span><kbd>SHIFT</kbd> Shadow Crouch</span>
-      <span class="sep">·</span>
-      <span><kbd>LMB</kbd>/<kbd>SPACE</kbd> Toss Coin Lure</span>
-      <span class="sep">·</span>
-      <span><kbd>Q</kbd> Velvet Smoke</span>
-      <span class="sep">·</span>
-      <span><kbd>E</kbd> Loot / Hide</span>
-      <span class="sep">·</span>
+      <span class="bsep">·</span>
+      <span><kbd>SHIFT</kbd> Crouch</span>
+      <span class="bsep">·</span>
+      <span><kbd>Q</kbd>/<kbd>LMB</kbd> Coin Lure</span>
+      <span class="bsep">·</span>
+      <span><kbd>E</kbd> Velvet Veil</span>
+      <span class="bsep">·</span>
+      <span><kbd>F</kbd> Loot</span>
+      <span class="bsep">·</span>
       <span><kbd>P</kbd> Pause</span>
-      <span class="sep">·</span>
+      <span class="bsep">·</span>
       <span><kbd>R</kbd> Restart</span>
     </footer>
   </div>
