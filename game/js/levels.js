@@ -224,7 +224,7 @@ const RAW_WINGS = [
       { x1: 562, y1: 242, x2: 798, y2: 242, period: 4.4, duty: 0.64, phase: 0.1 },
     ],
     guards: [
-      { type: 'curator', x: 368, y: 286, angle: 2.38, waypoints: [{ x: 368, y: 122 }, { x: 368, y: 460 }] },
+      { type: 'curator', x: 404, y: 286, angle: 2.38, waypoints: [{ x: 404, y: 122 }, { x: 404, y: 460 }] },
       { type: 'docent', x: 222, y: 112, angle: 0.25, waypoints: [{ x: 124, y: 108 }, { x: 520, y: 108 }] },
       { type: 'curator', x: 642, y: 356, angle: 2.95, waypoints: [{ x: 604, y: 356 }, { x: 756, y: 356 }] },
       { type: 'inspector', x: 526, y: 484, angle: 3.14, waypoints: [{ x: 430, y: 484 }, { x: 744, y: 484 }] },
@@ -301,8 +301,8 @@ const RAW_WINGS = [
     ],
     guards: [
       { type: 'inspector', x: 284, y: 284, angle: 0.08, waypoints: [{ x: 242, y: 284 }, { x: 558, y: 284 }] },
-      { type: 'docent', x: 412, y: 112, angle: 1.54, waypoints: [{ x: 230, y: 116 }, { x: 590, y: 116 }] },
-      { type: 'curator', x: 412, y: 462, angle: -1.48, waypoints: [{ x: 240, y: 462 }, { x: 580, y: 462 }] },
+      { type: 'docent', x: 412, y: 128, angle: 1.54, waypoints: [{ x: 230, y: 128 }, { x: 590, y: 128 }] },
+      { type: 'curator', x: 412, y: 444, angle: -1.48, waypoints: [{ x: 240, y: 444 }, { x: 580, y: 444 }] },
       { type: 'docent', x: 706, y: 472, angle: -1.6, waypoints: [{ x: 706, y: 494 }, { x: 706, y: 120 }] },
     ],
   },
@@ -341,9 +341,9 @@ const RAW_WINGS = [
     ],
     tripwires: [{ x1: 660, y1: 396, x2: 800, y2: 396, period: 4.0, duty: 0.6, phase: 0 }],
     guards: [
-      { type: 'inspector', x: 260, y: 112, angle: 0, waypoints: [{ x: 180, y: 112 }, { x: 640, y: 112 }] },
+      { type: 'inspector', x: 260, y: 132, angle: 0, waypoints: [{ x: 180, y: 132 }, { x: 640, y: 132 }] },
       { type: 'inspector', x: 560, y: 454, angle: 3.14, waypoints: [{ x: 640, y: 454 }, { x: 180, y: 454 }] },
-      { type: 'docent', x: 410, y: 288, angle: 0, waypoints: [{ x: 124, y: 288 }, { x: 696, y: 288 }] },
+      { type: 'docent', x: 410, y: 222, angle: 0, waypoints: [{ x: 150, y: 222 }, { x: 670, y: 222 }] },
     ],
   },
 

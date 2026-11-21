@@ -591,13 +591,13 @@ function drawOpalAndRelics(ctx, state, nowSec) {
     ctx.fillStyle = '#ffffff';
     ctx.beginPath(); ctx.arc(-2.5, -3.5, 2.6, 0, Math.PI * 2); ctx.fill();
 
-    drawTag(ctx, 0, -32, 'THE SOLIS OPAL', '#fef08a', 'rgba(12, 20, 38, 0.94)', '#38bdf8', false);
+    drawTag(ctx, 0, -35, 'SOLIS OPAL', '#fef08a', 'rgba(12, 20, 38, 0.96)', '#38bdf8', false, true);
   } else {
     ctx.strokeStyle = 'rgba(52, 211, 153, 0.78)';
     ctx.setLineDash([3, 3]);
     ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.stroke();
     ctx.setLineDash([]);
-    drawTag(ctx, 0, 32, 'OPAL TAKEN', '#6ee7b7', 'rgba(11, 26, 22, 0.94)', '#34d399', false);
+    drawTag(ctx, 0, 35, 'OPAL TAKEN', '#6ee7b7', 'rgba(11, 26, 22, 0.96)', '#34d399', false, true);
   }
   ctx.restore();
 }
@@ -641,7 +641,7 @@ function drawBrassElevator(ctx, state, nowSec) {
     for (const bx of [-15, -11, 11, 15]) {
       ctx.beginPath(); ctx.moveTo(bx, -3); ctx.lineTo(bx, 16); ctx.stroke();
     }
-    drawTag(ctx, 0, 32, 'ELEVATOR OPEN', '#6ee7b7', 'rgba(8, 30, 22, 0.96)', '#34d399', false);
+    drawTag(ctx, 0, 34, 'EXIT · OPEN', '#6ee7b7', 'rgba(8, 30, 22, 0.97)', '#34d399', false, true);
   } else {
     // Closed vertical bars + clear brass padlock badge
     ctx.strokeStyle = 'rgba(201, 162, 82, 0.65)';
@@ -655,7 +655,7 @@ function drawBrassElevator(ctx, state, nowSec) {
     ctx.beginPath(); ctx.arc(0, 4, 4.5, Math.PI, 0); ctx.stroke();
     ctx.fillRect(-5.5, 4, 11, 8);
     ctx.strokeRect(-5.5, 4, 11, 8);
-    drawTag(ctx, 0, 31, 'LOCKED · ELEVATOR', '#f6d88a', 'rgba(18, 14, 9, 0.95)', '#c9a252', false);
+    drawTag(ctx, 0, 33, 'EXIT · LOCKED', '#f6d88a', 'rgba(18, 14, 9, 0.96)', '#e5be67', false, true);
   }
   ctx.restore();
 }
@@ -820,52 +820,71 @@ function drawCameraDome(ctx, cam) {
 
 function drawInfiltrator(ctx, state) {
   const p = state.player;
-  const hidden = p.inShadow || p.inVeil || p.inAlcove || (p.inSettee && p.crouched);
+  const concealed = p.inVeil || (p.inSettee && p.crouched);
+  const shadowed = !concealed && (p.inShadow || p.inDoused || p.inAlcove);
   ctx.save();
   ctx.translate(p.x, p.y);
 
-  // Bright luminous emerald HIDDEN aura ring for unmistakable player readability!
-  if (hidden) {
-    const aura = ctx.createRadialGradient(0, 0, p.r * 0.6, 0, 0, p.r + 16);
-    aura.addColorStop(0, 'rgba(52, 211, 153, 0.36)');
+  // Distinct aura: bright emerald ONLY when genuinely concealed; soft cyan in ordinary shadow
+  if (concealed) {
+    const aura = ctx.createRadialGradient(0, 0, p.r * 0.5, 0, 0, p.r + 19);
+    aura.addColorStop(0, 'rgba(52, 211, 153, 0.44)');
     aura.addColorStop(1, 'rgba(52, 211, 153, 0)');
     ctx.fillStyle = aura;
-    ctx.beginPath(); ctx.arc(0, 0, p.r + 16, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, p.r + 19, 0, Math.PI * 2); ctx.fill();
+  } else if (shadowed) {
+    const aura = ctx.createRadialGradient(0, 0, p.r * 0.6, 0, 0, p.r + 13);
+    aura.addColorStop(0, 'rgba(56, 189, 248, 0.24)');
+    aura.addColorStop(1, 'rgba(56, 189, 248, 0)');
+    ctx.fillStyle = aura;
+    ctx.beginPath(); ctx.arc(0, 0, p.r + 13, 0, Math.PI * 2); ctx.fill();
   }
 
-  ctx.strokeStyle = hidden ? '#34d399' : '#f6d88a';
-  ctx.lineWidth = hidden ? 2.5 : 2.1;
-  if (hidden) ctx.setLineDash([5, 3]);
-  ctx.beginPath(); ctx.arc(0, 0, p.r + 6, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = concealed ? '#34d399' : shadowed ? '#38bdf8' : '#f6d88a';
+  ctx.lineWidth = concealed ? 2.8 : 2.0;
+  if (concealed || shadowed) ctx.setLineDash([5, 3]);
+  ctx.beginPath(); ctx.arc(0, 0, p.r + 7, 0, Math.PI * 2); ctx.stroke();
   ctx.setLineDash([]);
 
-  // Art-Deco Midnight Cloak Silhouette + Luminous Visor
+  // Distinct Art-Deco Noir Infiltrator: tailored trench shoulders + wide-brimmed fedora + emerald/ivory scarf collar
   ctx.rotate(p.angle);
-  ctx.fillStyle = hidden ? '#0b2b2c' : '#16253b';
-  ctx.strokeStyle = hidden ? '#a7f3d0' : '#f6efe2';
-  ctx.lineWidth = 2.4;
+  ctx.fillStyle = concealed ? '#082423' : '#101d33';
+  ctx.strokeStyle = concealed ? '#a7f3d0' : '#f6efe2';
+  ctx.lineWidth = 2.1;
   ctx.beginPath();
-  ctx.ellipse(-1, 0, p.r, p.r + 1.5, 0, 0, Math.PI * 2);
+  ctx.moveTo(4, -12.5); ctx.lineTo(-9, -10.5); ctx.lineTo(-11, 0); ctx.lineTo(-9, 10.5); ctx.lineTo(4, 12.5);
+  ctx.quadraticCurveTo(9, 0, 4, -12.5);
+  ctx.closePath();
   ctx.fill(); ctx.stroke();
 
-  ctx.fillStyle = state.opalTaken ? '#fef08a' : '#6ee7b7';
+  // Wide-brimmed fedora crown & emerald/gold ribbon band
+  ctx.fillStyle = '#0d1424';
+  ctx.strokeStyle = concealed ? '#34d399' : state.opalTaken ? '#fef08a' : '#7dd3fc';
+  ctx.lineWidth = 1.9;
+  ctx.beginPath(); ctx.ellipse(-1.5, 0, 7.6, 8.8, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+  // Bright directional ivory/emerald lapel chevron
+  ctx.fillStyle = state.opalTaken ? '#fef08a' : concealed ? '#6ee7b7' : '#f8fafc';
   ctx.beginPath();
-  ctx.moveTo(8.2, 0); ctx.lineTo(1.5, -5); ctx.lineTo(3.6, 0); ctx.lineTo(1.5, 5);
+  ctx.moveTo(11.5, 0); ctx.lineTo(2.5, -5.5); ctx.lineTo(4.8, 0); ctx.lineTo(2.5, 5.5);
   ctx.closePath(); ctx.fill();
   ctx.restore();
 
-  if (hidden && state.detectionState !== 'BREACH') {
-    const lbl = p.inVeil ? 'VELVET VEIL' : p.inSettee ? 'HIDDEN' : p.inDoused ? 'DEEP SHADOW' : 'HIDDEN';
-    drawTag(ctx, p.x, p.y + 24, lbl, '#6ee7b7', 'rgba(6, 24, 22, 0.96)', '#34d399');
+  if (concealed && state.detectionState !== 'BREACH') {
+    const lbl = p.inVeil ? 'VELVET VEIL' : 'YOU · HIDDEN';
+    drawTag(ctx, p.x, p.y + 27, lbl, '#6ee7b7', 'rgba(6, 26, 22, 0.97)', '#34d399', true, true);
+  } else if (shadowed && state.detectionState !== 'BREACH') {
+    const lbl = p.inDoused ? 'DEEP SHADOW' : 'SHADOW';
+    drawTag(ctx, p.x, p.y + 25, lbl, '#7dd3fc', 'rgba(9, 20, 34, 0.94)', '#38bdf8', true, false);
   }
 
   // Contextual stealth action prompt pill (crouch cover / douse lamp)
   if (state.contextPrompt) {
-    drawTag(ctx, p.x, p.y - 26, state.contextPrompt, '#f6d88a', 'rgba(9, 13, 22, 0.95)', '#c9a252');
+    drawTag(ctx, p.x, p.y - 29, state.contextPrompt, '#f6d88a', 'rgba(9, 13, 22, 0.96)', '#c9a252');
   } else if (state.mode === 'play' && !state.shotMode && p.lampInRange) {
-    drawTag(ctx, p.x, p.y - 26, 'R · DOUSE LAMP', '#f6d88a', 'rgba(9, 13, 22, 0.95)', '#c9a252');
+    drawTag(ctx, p.x, p.y - 29, 'R · DOUSE LAMP', '#f6d88a', 'rgba(9, 13, 22, 0.96)', '#c9a252');
   } else if (state.mode === 'play' && !state.shotMode && p.inSettee && p.crouched) {
-    drawTag(ctx, p.x, p.y - 26, 'SHIFT · CROUCH IN COVER', '#a7f3d0', 'rgba(8, 22, 20, 0.95)', '#34d399');
+    drawTag(ctx, p.x, p.y - 29, 'SHIFT · CROUCH IN COVER', '#a7f3d0', 'rgba(8, 22, 20, 0.96)', '#34d399');
   }
 }
 
@@ -924,20 +943,28 @@ function drawAimArc(ctx, state) {
   ctx.restore();
 }
 
-function drawTag(ctx, x, y, text, fg, bg, border, clamp = true) {
+function drawTag(ctx, x, y, text, fg, bg, border, clamp = true, hero = false) {
   ctx.save();
-  ctx.font = '800 9.5px ui-monospace, SFMono-Regular, monospace';
-  const tw = ctx.measureText(text).width + 12;
+  ctx.font = hero ? '800 12.5px ui-monospace, SFMono-Regular, monospace' : '800 10px ui-monospace, SFMono-Regular, monospace';
+  const h = hero ? 22 : 17;
+  const tw = ctx.measureText(text).width + (hero ? 16 : 12);
   const bx = clamp ? Math.max(18, Math.min(STAGE_W - tw - 18, x - tw / 2)) : x - tw / 2;
-  const by = clamp ? Math.max(18, Math.min(STAGE_H - 22, y - 8)) : y - 8;
+  const by = clamp ? Math.max(18, Math.min(STAGE_H - h - 6, y - h / 2)) : y - h / 2;
+  if (hero) {
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.78)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 2;
+  }
   ctx.fillStyle = bg;
-  ctx.fillRect(bx, by, tw, 16);
+  ctx.fillRect(bx, by, tw, h);
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
   ctx.strokeStyle = border || fg;
-  ctx.lineWidth = 1.1;
-  ctx.strokeRect(bx + 0.5, by + 0.5, tw - 1, 15);
+  ctx.lineWidth = hero ? 1.7 : 1.15;
+  ctx.strokeRect(bx + 0.5, by + 0.5, tw - 1, h - 1);
   ctx.fillStyle = fg;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(text, bx + tw / 2, by + 8.5);
+  ctx.fillText(text, bx + tw / 2, by + h / 2 + 0.5);
   ctx.restore();
 }

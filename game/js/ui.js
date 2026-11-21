@@ -12,19 +12,21 @@ const STATE_COPY = {
 const ROMANS = ['I', 'II', 'III', 'IV', 'V'];
 
 export function mountArtDecoHud(handlers) {
-  document.getElementById('topbar').innerHTML = `
-    <div class="top-left">
-      <span data-ui="wing-roman" class="roman-seal">I</span>
-      <span data-ui="wing-name" class="wing-title">GRAND ROTUNDA</span>
-      <span class="brass-pip">◆</span>
-      <span data-ui="objective" class="top-objective">Steal The Solis Opal, then board the Brass Elevator unseen</span>
-    </div>
-    <div class="top-right">
-      <span class="top-metric"><em class="mk">WING</em> <strong data-ui="gallery" class="mono">I/V</strong></span>
-      <span class="top-metric"><em class="mk">TIME</em> <strong data-ui="timer" class="mono">00:46</strong></span>
-      <span class="top-metric"><em class="mk">SCORE</em> <strong data-ui="score" class="mono gold">2,500</strong></span>
-      <button data-ui="btn-mute" class="mute-btn" title="Mute Audio (M)">SFX</button>
-    </div>`;
+  if (!document.querySelector('[data-ui="objective"]')) {
+    document.getElementById('topbar').innerHTML = `
+      <div class="top-left">
+        <span data-ui="wing-roman" class="roman-seal">I</span>
+        <span data-ui="wing-name" class="wing-title">GRAND ROTUNDA</span>
+        <span class="brass-pip">◆</span>
+        <span data-ui="objective" class="top-objective">Slip unseen to The Solis Opal vitrine, then board the Brass Elevator</span>
+      </div>
+      <div class="top-right">
+        <span class="top-metric"><em class="mk">WING</em> <strong data-ui="gallery" class="mono">I/V</strong></span>
+        <span class="top-metric"><em class="mk">TIME</em> <strong data-ui="timer" class="mono">00:46</strong></span>
+        <span class="top-metric"><em class="mk">SCORE</em> <strong data-ui="score" class="mono gold">800</strong></span>
+        <button data-ui="btn-mute" class="mute-btn" title="Mute Audio (M)">SFX</button>
+      </div>`;
+  }
 
   document.getElementById('overlays').innerHTML = `
     <div data-ui="curfew-ribbon" class="curfew-ribbon hidden"></div>
@@ -156,15 +158,17 @@ export function mountArtDecoHud(handlers) {
       </div>
     </div>`;
 
-  document.getElementById('controls').innerHTML = `
-    <span><kbd>WASD</kbd> Move</span><span class="bsep">·</span>
-    <span><kbd>SHIFT</kbd> Crouch in Cover</span><span class="bsep">·</span>
-    <span><kbd>Q</kbd>/<kbd>LMB</kbd> Coin Lure</span><span class="bsep">·</span>
-    <span><kbd>E</kbd> Velvet Veil</span><span class="bsep">·</span>
-    <span><kbd>R</kbd> Douse Lamp</span><span class="bsep">·</span>
-    <span><kbd>V</kbd> Brass Vent</span><span class="bsep">·</span>
-    <span><kbd>P</kbd> Pause</span><span class="bsep">·</span>
-    <span><kbd>X</kbd> Restart</span>`;
+  if (!document.getElementById('controls').children.length) {
+    document.getElementById('controls').innerHTML = `
+      <span><kbd>WASD</kbd> Move</span><span class="bsep">·</span>
+      <span><kbd>SHIFT</kbd> Crouch in Cover</span><span class="bsep">·</span>
+      <span><kbd>Q</kbd>/<kbd>LMB</kbd> Coin Lure</span><span class="bsep">·</span>
+      <span><kbd>E</kbd> Velvet Veil</span><span class="bsep">·</span>
+      <span><kbd>R</kbd> Douse Lamp</span><span class="bsep">·</span>
+      <span><kbd>V</kbd> Brass Vent</span><span class="bsep">·</span>
+      <span><kbd>P</kbd> Pause</span><span class="bsep">·</span>
+      <span><kbd>X</kbd> Restart</span>`;
+  }
 
   ui('btn-start').onclick = handlers.onStart;
   ui('btn-next-wing').onclick = handlers.onNextWing;

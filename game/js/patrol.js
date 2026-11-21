@@ -17,9 +17,10 @@ export function updateCuratorPatrols(state, dt, sound, onCaught, onRibbon) {
 
   for (const g of state.guards) {
     if (g.hitCooldown > 0) g.hitCooldown = Math.max(0, g.hitCooldown - dt);
+    const prevX = g.x, prevY = g.y;
     const dx = p.x - g.x, dy = p.y - g.y;
     const dist = Math.hypot(dx, dy);
-    const effRange = g.spec.visionRange * (p.inShadow && p.crouched ? 0.55 : p.inShadow ? 0.74 : p.inLight ? 1.12 : 0.94);
+    const effRange = g.spec.visionRange * (p.inShadow && p.crouched ? 0.56 : p.inShadow ? 0.74 : 1.0);
     const inCone = isPointInVisionCone(g.x, g.y, g.angle, g.spec.fov, effRange, p.x, p.y, state.geom, state.veilsActive);
     const closeBump = dist < 22 && hasLineOfSight(g.x, g.y, p.x, p.y, state.geom, state.veilsActive);
     const canSee = !concealed && (inCone || closeBump);
@@ -79,7 +80,19 @@ export function updateCuratorPatrols(state, dt, sound, onCaught, onRibbon) {
         else { g.state = 'SWEEPING'; g.stateTimer = Math.max(2.0, g.stateTimer); g.searchDir = Math.random() < 0.5 ? 1 : -1; }
       } else { g.state = 'SWEEPING'; g.stateTimer = 2.0; }
     } else if (g.state === 'SWEEPING') {
-      g.angle = normalizeAngle(g.angle + g.searchDir * 1.45 * dt);
+      if (g.target) {
+        const tx = g.target.x - g.x, ty = g.target.y - g.y, td = Math.hypot(tx, ty);
+        if (td > 26) {
+          g.angle = turnToward(g.angle, Math.atan2(ty, tx), 4.6 * dt);
+          const stepped = moveWithSlide(g, (tx / td) * g.spec.speed * 1.08 * dt, (ty / td) * g.spec.speed * 1.08 * dt, obs);
+          if (!stepped) { g.target = null; g.callout = 'SWEEPING'; }
+        } else {
+          g.target = null;
+          g.callout = 'SWEEPING';
+        }
+      } else {
+        g.angle = normalizeAngle(g.angle + g.searchDir * 1.45 * dt);
+      }
       g.stateTimer -= dt;
       if (g.stateTimer <= 0) {
         if (g.peakSuspicion >= 0.42) {
@@ -100,10 +113,13 @@ export function updateCuratorPatrols(state, dt, sound, onCaught, onRibbon) {
       }
     }
 
-    g.stepTimer -= dt;
-    if (g.stepTimer <= 0 && g.state !== 'SWEEPING') {
-      g.stepTimer = g.state === 'BREACH' ? 0.34 : 0.62;
-      emitGuardFootstepEcho(state, g, p, sound);
+    const movedDist = Math.hypot(g.x - prevX, g.y - prevY);
+    if (movedDist > 0.25) {
+      g.stepTimer -= dt;
+      if (g.stepTimer <= 0) {
+        g.stepTimer = g.state === 'BREACH' ? 0.34 : 0.62;
+        emitGuardFootstepEcho(state, g, p, sound);
+      }
     }
 
     g.visionPoly = computeRaycastVisionCone(g.x, g.y, g.angle, g.spec.fov, g.spec.visionRange, state.geom, state.veilsActive);
@@ -128,7 +144,6 @@ export function updateBrassEyeCameras(state, dt, sound, onRibbon) {
     cam.visionPoly = computeRaycastVisionCone(cam.x, cam.y, cam.angle, cam.fov, cam.range, state.geom, state.veilsActive);
     cam.alerting = !concealed && isPointInVisionCone(cam.x, cam.y, cam.angle, cam.fov, cam.range, p.x, p.y, state.geom, state.veilsActive);
     if (cam.alerting && state.bellCooldown <= 0) {
-      state.bellCooldown = 3.2;
       soundCurfewBell(state, null, p.x, p.y, sound, onRibbon);
     }
   }
@@ -210,9 +225,14 @@ export function notifySound(state, x, y, radius, isLure, sound) {
 }
 
 export function soundCurfewBell(state, sourceGuard, x, y, sound, onRibbon) {
-  state.alerts += 1;
-  state.wingAlerts += 1;
-  state.bellCount = Math.min(3, state.bellCount + 1);
+  const alreadyInBreach = state.guards.some((g) => g.state === 'BREACH');
+  const shouldToll = !alreadyInBreach && state.bellCooldown <= 0;
+  if (shouldToll) {
+    state.alerts += 1;
+    state.wingAlerts += 1;
+    state.bellCount = Math.min(3, state.bellCount + 1);
+    state.bellCooldown = 4.5;
+  }
   state.lastGlimpse = { x, y, angle: state.player.angle };
   state.bellOrigin = { x, y };
   state.bellLinks = [];
@@ -222,15 +242,21 @@ export function soundCurfewBell(state, sourceGuard, x, y, sound, onRibbon) {
       g.state = 'BREACH'; g.suspicion = 1; g.stateTimer = 4.2; g.target = { x, y }; g.callout = 'CURFEW BELL!';
       continue;
     }
+    if (g.state === 'BREACH') {
+      g.target = { x, y }; g.stateTimer = Math.max(g.stateTimer, 3.6);
+      continue;
+    }
     if (Math.hypot(g.x - x, g.y - y) < 390) {
       g.state = 'SWEEPING'; g.suspicion = Math.max(g.suspicion, 0.72); g.peakSuspicion = Math.max(g.peakSuspicion, 0.72);
-      g.target = { x, y }; g.callout = 'CONVERGING'; g.stateTimer = 4.0;
+      g.target = { x, y }; g.callout = 'CONVERGING'; g.stateTimer = 4.2;
       state.bellLinks.push({ x1: x, y1: y, x2: g.x, y2: g.y });
     }
   }
-  if (sound) sound.playCurfewBell();
-  if (onRibbon) onRibbon('CURFEW BELL! Slip behind marble cover or pop Velvet Veil [E].', true);
-  if (state.bellCount >= 3) state.lockdown = true;
+  if (shouldToll) {
+    if (sound) sound.playCurfewBell();
+    if (onRibbon) onRibbon('CURFEW BELL! Slip behind marble cover or pop Velvet Veil [E].', true);
+    if (state.bellCount >= 3) state.lockdown = true;
+  }
 }
 
 function moveWithSlide(entity, dx, dy, obstacles) {

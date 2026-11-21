@@ -74,6 +74,9 @@ export function douseNearbySconce(state, sound, onRibbon) {
   lamp.lit = false;
   state.dousedCount += 1;
   state.score += Math.round(100 * state.mods.scoreMult);
+  if (state.runPins && !state.runPins.some((p) => p.label === 'DOUSED LAMP')) {
+    state.runPins.push({ x: lamp.x, y: lamp.y, label: 'DOUSED LAMP', color: '#38bdf8', dy: 26 });
+  }
   spawnSparks(state, lamp.x, lamp.y, '#94a3b8', 12);
   if (sound) sound.playSconceDouse();
 
@@ -222,6 +225,9 @@ export function updateEffects(state, dt, sound) {
     if (c.t >= c.dur) {
       const lureR = 178 * state.mods.lureRadiusMult;
       state.lastCoinArc = { sx: c.sx, sy: c.sy, tx: c.tx, ty: c.ty, alpha: 0.85 };
+      if (state.runPins && !state.runPins.some((p) => p.label === 'CLINK! LURE')) {
+        state.runPins.push({ x: c.tx, y: c.ty, label: 'CLINK! LURE', color: '#f59e0b', dy: -22 });
+      }
       state.ripples.push(
         { x: c.tx, y: c.ty, r: 14, maxR: lureR, alpha: 0.96, kind: 'coin', label: 'CLINK!' },
         { x: c.tx, y: c.ty, r: 4, maxR: lureR * 0.62, alpha: 0.82, kind: 'coin' }

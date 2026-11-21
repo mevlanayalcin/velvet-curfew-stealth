@@ -36,7 +36,7 @@ const state = {
   relicItems: [], relicsTaken: 0, relicsTotal: 4, lights: [], perks: [], mods: computeMods([]),
   campaign: {}, player: null, guards: [], cameras: [], tripwires: [],
   coinsInFlight: [], lastCoinArc: null, ripples: [], guardSteps: [], veilsActive: [],
-  particles: [], trail: [], debriefTrail: null, lastGlimpse: null, bellOrigin: null, bellLinks: [],
+  particles: [], trail: [], runPins: [], debriefTrail: null, lastGlimpse: null, bellOrigin: null, bellLinks: [],
   detectionState: 'UNSEEN', maxSuspicion: 0, contextPrompt: null,
   aim: { x: STAGE_W / 2, y: STAGE_H / 2, active: false },
   draftOptions: [], ribbonTimer: 0,
@@ -89,6 +89,7 @@ export function loadMuseumWing(idx, resetRun = false) {
   state.lights = state.wing.lights.map((l) => ({ x: l.x, y: l.y, r: l.r, lit: true }));
   state.coinsInFlight = []; state.lastCoinArc = null; state.ripples = []; state.guardSteps = [];
   state.veilsActive = []; state.particles = []; state.trail = [{ x: state.wing.spawn.x, y: state.wing.spawn.y }];
+  state.runPins = [{ x: state.wing.spawn.x, y: state.wing.spawn.y, label: 'ENTRY', color: '#f0d084', dy: -22 }];
   state.debriefTrail = null; state.lastGlimpse = null; state.bellOrigin = null; state.bellLinks = [];
   state.detectionState = 'UNSEEN'; state.maxSuspicion = 0;
 
@@ -129,9 +130,14 @@ function handleWingClear() {
   state.ghostBonus = Math.round((ghost ? 2500 : 900) * state.mods.scoreMult);
   state.score += state.ghostBonus;
   state.campaign[state.wingIndex] = { grade: ghost ? 'S' : 'A', time: state.time };
+  const pts = [...state.trail];
+  const last = pts[pts.length - 1];
+  if (!last || Math.hypot(last.x - state.wing.elevator.x, last.y - state.wing.elevator.y) > 8) {
+    pts.push({ x: state.wing.elevator.x, y: state.wing.elevator.y });
+  }
   state.debriefTrail = {
-    points: [...state.trail, { x: state.wing.elevator.x, y: state.wing.elevator.y }],
-    pins: [{ x: state.wing.spawn.x, y: state.wing.spawn.y, label: 'ENTRY', color: '#f0d084', dy: -22 }],
+    points: pts,
+    pins: state.runPins.slice(0, 4),
   };
   state.mode = 'debrief';
   renderDebriefLedger(state, (idx) => { loadMuseumWing(idx, false); state.mode = 'play'; setOverlay('play'); });
@@ -157,7 +163,7 @@ function advanceOrDraft() {
 function applyShotPreset(shot) {
   if (shot === 'curious') {
     loadMuseumWing(0, true);
-    state.mode = 'play'; state.time = 46; state.score = 2500;
+    state.mode = 'play'; state.time = 46; state.score = 800; // 2x350 relics + 1x100 lamp
     state.relicItems[0].taken = true; state.relicItems[2].taken = true; state.relicsTaken = 2;
     state.coins = 3; state.coinsUsed = 1; state.veils = 2; state.dousedCount = 1;
     state.detectionState = 'CURIOUS'; state.lights[3].lit = false;
@@ -175,8 +181,8 @@ function applyShotPreset(shot) {
     state.guards[2].x = px(408); state.guards[2].y = py(122); state.guards[2].angle = 0.72; state.guards[2].state = 'PATROL';
     state.cameras[0].angle = 2.48; state.tripwires[0].active = true;
     state.guardSteps = [
-      { x: px(408), y: py(122), r: 34, maxR: 54, alpha: 0.8, danger: false, label: 'STEP' },
-      { x: px(576), y: py(288), r: 30, maxR: 50, alpha: 0.68, danger: false },
+      { x: px(408), y: py(122), r: 34, maxR: 54, alpha: 0.76, danger: false },
+      { x: px(576), y: py(288), r: 30, maxR: 50, alpha: 0.65, danger: false },
     ];
     evaluateStealthSurface(state, 0); recomputeAllCones(); setOverlay('play'); hideRibbonBanner(); updateCuratorTelemetry(state);
     return;
@@ -184,7 +190,7 @@ function applyShotPreset(shot) {
 
   if (shot === 'breach') {
     loadMuseumWing(2, true);
-    state.mode = 'play'; state.time = 74; state.score = 4650;
+    state.mode = 'play'; state.time = 74; state.score = 2000; // 1200 Opal + 2x350 relics + 1x100 lamp
     state.opalTaken = true; state.relicItems[0].taken = true; state.relicItems[1].taken = true; state.relicsTaken = 3;
     state.coins = 2; state.veils = 1; state.dousedCount = 1; state.lights[3].lit = false;
     state.wingAlerts = 1; state.bellCount = 1; state.detectionState = 'BREACH';
@@ -192,8 +198,8 @@ function applyShotPreset(shot) {
     state.veilsActive = [{ x: px(468), y: py(286), r: 74, maxR: 76, timer: 4.5, duration: 6.8, alpha: 0.92 }];
     state.lastGlimpse = { x: px(404), y: py(288), angle: 0.05 };
     const g0 = state.guards[0]; g0.x = px(292); g0.y = py(286); g0.angle = 0.04; g0.state = 'BREACH'; g0.suspicion = 1.0;
-    const g1 = state.guards[1]; g1.x = px(412); g1.y = py(114); g1.angle = 1.56; g1.state = 'SWEEPING'; g1.suspicion = 0.76; g1.callout = 'CONVERGING';
-    const g2 = state.guards[2]; g2.x = px(412); g2.y = py(462); g2.angle = -1.56; g2.state = 'SWEEPING'; g2.suspicion = 0.72; g2.callout = 'CONVERGING';
+    const g1 = state.guards[1]; g1.x = px(412); g1.y = py(128); g1.angle = 1.56; g1.state = 'SWEEPING'; g1.suspicion = 0.76; g1.callout = 'CONVERGING';
+    const g2 = state.guards[2]; g2.x = px(412); g2.y = py(444); g2.angle = -1.56; g2.state = 'SWEEPING'; g2.suspicion = 0.72; g2.callout = 'CONVERGING';
     state.guards[3].x = px(716); state.guards[3].y = py(478); state.guards[3].angle = -1.62; state.guards[3].state = 'PATROL';
     state.bellOrigin = { x: px(292), y: py(286) };
     state.bellLinks = [{ x1: px(292), y1: py(286), x2: g1.x, y2: g1.y }, { x1: px(292), y1: py(286), x2: g2.x, y2: g2.y }];
@@ -207,7 +213,7 @@ function applyShotPreset(shot) {
 
   if (shot === 'sweeping') {
     loadMuseumWing(1, true);
-    state.mode = 'play'; state.time = 62; state.score = 3850;
+    state.mode = 'play'; state.time = 62; state.score = 800; // 2x350 relics + 1x100 lamp
     state.relicItems[0].taken = true; state.relicItems[1].taken = true; state.relicsTaken = 2;
     state.coins = 3; state.veils = 1; state.dousedCount = 1; state.wingAlerts = 1; state.bellCount = 1;
     state.detectionState = 'SWEEPING'; state.lights[4].lit = false;
@@ -229,28 +235,33 @@ function applyShotPreset(shot) {
 
   if (shot === 'debrief') {
     loadMuseumWing(0, true);
-    state.mode = 'debrief'; state.time = 78; state.score = 4850; state.ghostBonus = 2500;
-    state.opalTaken = true; state.relicItems.forEach((r) => { r.taken = true; });
-    state.relicsTaken = 4; state.relicsTotal = 4; state.coinsUsed = 2; state.dousedCount = 2;
-    state.lights[3].lit = false; state.lights[1].lit = false; state.wingAlerts = 0;
-    state.campaign = { 0: { grade: 'S', time: 78 } };
+    state.time = 78;
+    // Genuine walkable Wing I extraction clearing every solid wall, column, vitrine & folding screen
+    state.trail = [
+      [74, 492], [74, 536], [194, 536], [194, 444], [246, 404],
+      [246, 172], [246, 122], [186, 122], [102, 88], [186, 122],
+      [246, 118], [410, 84], [410, 288], [468, 288], [572, 288],
+      [572, 172], [572, 118], [662, 78], [748, 74],
+    ].map(([x, y]) => ({ x: px(x), y: py(y) }));
+
+    // Execute real live gameplay actions so score & runPins reconcile 100% (4,600 exact)
+    state.player.x = px(194); state.player.y = py(444);
+    douseNearbySconce(state, null, null); // lights[3] (+100, records DOUSED LAMP pin)
+    state.player.x = px(186); state.player.y = py(122);
+    douseNearbySconce(state, null, null); // lights[1] (+100)
+    state.relicItems[0].taken = true; state.relicItems[2].taken = true; state.relicsTaken = 2; state.score += 700; // NW & N relics (2x350)
+    state.coinsUsed = 2; state.coins = 2;
+    state.runPins.push({ x: px(246), y: py(118), label: 'CLINK! LURE', color: '#f59e0b', dy: -22 });
+    state.player.x = px(410); state.player.y = py(288);
+    claimSolisOpal(state, null, null); // +1200, relicsTaken -> 3/4
+    state.player.x = px(748); state.player.y = py(74);
     state.guards[0].x = px(342); state.guards[0].y = py(410); state.guards[0].angle = -2.35;
     state.guards[1].x = px(572); state.guards[1].y = py(336); state.guards[1].angle = 2.85;
     state.guards[2].x = px(310); state.guards[2].y = py(122); state.guards[2].angle = 0.25;
     state.cameras[0].angle = 2.52;
-    state.debriefTrail = {
-      points: [
-        [74, 492], [86, 440], [194, 444], [244, 348], [246, 170],
-        [246, 118], [356, 118], [410, 190], [410, 288], [454, 288],
-        [454, 222], [572, 196], [572, 112], [678, 80], [748, 74],
-      ].map(([x, y]) => ({ x: px(x), y: py(y) })),
-      pins: [
-        { x: px(74), y: py(492), label: 'ENTRY', color: '#f0d084', dy: -22 },
-        { x: px(194), y: py(444), label: 'DOUSED LAMP', color: '#38bdf8', dy: 26 },
-        { x: px(246), y: py(118), label: 'CLINK! LURE', color: '#f59e0b', dy: -22 },
-      ],
-    };
-    recomputeAllCones(); renderDebriefLedger(state, () => {}); setOverlay('play'); hideRibbonBanner(); updateCuratorTelemetry(state);
+    recomputeAllCones();
+    handleWingClear(); // +2500 Ghost Bonus -> 4,600 exact, mounts Debrief Ledger & trail!
+    hideRibbonBanner();
   }
 }
 
@@ -297,7 +308,11 @@ window.addEventListener('keydown', (e) => {
     }
     return;
   }
-  if (state.mode === 'paused' && (e.code === 'KeyP' || e.code === 'Escape')) { state.mode = 'play'; setOverlay('play'); return; }
+  if (state.mode === 'paused') {
+    if (e.code === 'KeyP' || e.code === 'Escape') { state.mode = 'play'; setOverlay('play'); }
+    else if (e.code === 'KeyX') { loadMuseumWing(state.wingIndex, false); state.mode = 'play'; setOverlay('play'); triggerRibbon(`WING ${state.wing.roman} RESTARTED`, false); }
+    return;
+  }
   if (state.mode !== 'play') return;
 
   sound.unlock();
@@ -320,6 +335,15 @@ window.addEventListener('keydown', (e) => {
   }
 });
 window.addEventListener('keyup', (e) => { input.keys.delete(e.code); });
+
+function fitViewport() {
+  const app = document.getElementById('app');
+  if (!app) return;
+  const s = Math.min(1, window.innerWidth / 1280, window.innerHeight / 720);
+  app.style.transform = s < 0.999 ? `scale(${s})` : '';
+}
+window.addEventListener('resize', fitViewport);
+fitViewport();
 
 if (shotParam && ['curious', 'breach', 'sweeping', 'debrief'].includes(shotParam)) {
   applyShotPreset(shotParam);

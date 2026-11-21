@@ -8,15 +8,18 @@
 </head>
 <body>
   <div id="app" class="app-frame">
-    <header id="topbar" class="top-bar"></header>
+    <header id="topbar" class="top-bar">
+      <div class="top-left"><span data-ui="wing-roman" class="roman-seal">I</span><span data-ui="wing-name" class="wing-title">GRAND ROTUNDA</span><span class="brass-pip">◆</span><span data-ui="objective" class="top-objective">Slip unseen to The Solis Opal vitrine, then board the Brass Elevator</span></div>
+      <div class="top-right"><span class="top-metric"><em class="mk">WING</em> <strong data-ui="gallery" class="mono">I/V</strong></span><span class="top-metric"><em class="mk">TIME</em> <strong data-ui="timer" class="mono">00:46</strong></span><span class="top-metric"><em class="mk">SCORE</em> <strong data-ui="score" class="mono gold">800</strong></span><button data-ui="btn-mute" class="mute-btn" title="Mute Audio (M)">SFX</button></div>
+    </header>
     <main class="main-split">
       <section class="stage-wrap">
-        <canvas id="stage" width="1024" height="648"></canvas>
+        <canvas id="stage" width="1024" height="648" aria-label="Velvet Curfew Museum Floorplan"></canvas>
         <div id="overlays"></div>
       </section>
-      <aside id="hud" class="right-hud"></aside>
+      <aside id="hud" class="right-hud" aria-label="Stealth Telemetry and Legend"></aside>
     </main>
-    <footer id="controls" class="bottom-bar"></footer>
+    <footer id="controls" class="bottom-bar"><span><kbd>WASD</kbd> Move</span><span class="bsep">·</span><span><kbd>SHIFT</kbd> Crouch in Cover</span><span class="bsep">·</span><span><kbd>Q</kbd>/<kbd>LMB</kbd> Coin Lure</span><span class="bsep">·</span><span><kbd>E</kbd> Velvet Veil</span><span class="bsep">·</span><span><kbd>R</kbd> Douse Lamp</span><span class="bsep">·</span><span><kbd>V</kbd> Brass Vent</span><span class="bsep">·</span><span><kbd>P</kbd> Pause</span><span class="bsep">·</span><span><kbd>X</kbd> Restart</span></footer>
   </div>
   <script type="module" src="./js/main.js"></script>
 </body>
