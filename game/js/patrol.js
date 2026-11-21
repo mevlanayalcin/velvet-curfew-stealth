@@ -23,6 +23,7 @@ export function createGuards(wing, geom) {
       callout: null,
       searchDir: 1,
       hitCooldown: 0,
+      stepTimer: 0.2 + idx * 0.14,
       visionPoly: [],
     };
     guard.visionPoly = computeVisionPolygon(guard.x, guard.y, guard.angle, spec.fov, spec.visionRange, geom, []);
@@ -240,6 +241,21 @@ export function updateSecurity(state, dt, sound, onCaught, onRibbon) {
       else {
         g.angle = turnToward(g.angle, Math.atan2(ty, tx), 3.4 * dt);
         moveWithSlide(g, (tx / td) * g.spec.speed * dt, (ty / td) * g.spec.speed * dt, obs);
+      }
+    }
+
+    // Emit spatialized guard footstep sonar rings visible through walls!
+    g.stepTimer -= dt;
+    if (g.stepTimer <= 0 && g.state !== 'SWEEPING') {
+      g.stepTimer = g.state === 'BREACH' ? 0.34 : 0.62;
+      const dToPlayer = Math.hypot(g.x - p.x, g.y - p.y);
+      if (dToPlayer < 420) {
+        state.guardSteps.push({
+          x: g.x, y: g.y, r: 10, maxR: g.state === 'BREACH' ? 54 : 44,
+          alpha: g.state === 'BREACH' ? 0.85 : 0.65,
+          danger: g.state === 'BREACH' || g.state === 'CURIOUS',
+        });
+        if (sound) sound.guardStep((g.x - p.x) / 360, 1 - dToPlayer / 420);
       }
     }
 

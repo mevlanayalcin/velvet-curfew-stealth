@@ -12,15 +12,15 @@ function getMuseumFloor(wing) {
   off.height = STAGE_H;
   const g = off.getContext('2d');
 
-  // Slate-obsidian marble base (#141926 / #1b2233 chevron parquet)
-  g.fillStyle = '#141926';
+  // Deep nocturnal obsidian-indigo marble base so warm light pools vs cool shadows pop at thumbnail scale!
+  g.fillStyle = '#090d16';
   g.fillRect(0, 0, STAGE_W, STAGE_H);
 
   const step = 34;
   for (let y = -step; y < STAGE_H + step; y += step) {
     for (let x = -step; x < STAGE_W + step; x += step) {
       const alt = ((Math.floor(x / step) + Math.floor(y / step)) & 1) === 0;
-      g.fillStyle = alt ? '#1b2233' : '#141926';
+      g.fillStyle = alt ? '#0e1422' : '#090d16';
       g.beginPath();
       g.moveTo(x + step / 2, y);
       g.lineTo(x + step, y + step / 2);
@@ -28,7 +28,7 @@ function getMuseumFloor(wing) {
       g.lineTo(x, y + step / 2);
       g.closePath();
       g.fill();
-      g.strokeStyle = 'rgba(201, 162, 82, 0.065)';
+      g.strokeStyle = 'rgba(201, 162, 82, 0.05)';
       g.lineWidth = 0.8;
       g.stroke();
     }
@@ -40,12 +40,12 @@ function getMuseumFloor(wing) {
   g.strokeRect(24, 24, STAGE_W - 48, STAGE_H - 48);
   g.strokeRect(30, 30, STAGE_W - 60, STAGE_H - 60);
 
-  // Crimson velvet carpet runners (#5c1625) with double brass Art-Deco corner filigree
+  // Deeper nocturnal crimson velvet carpet runners with brass filigree
   for (const c of wing.carpets || []) {
     const grad = g.createLinearGradient(c.x, c.y, c.x + c.w, c.y + c.h);
-    grad.addColorStop(0, '#4f1220');
-    grad.addColorStop(0.5, '#68192b');
-    grad.addColorStop(1, '#48101d');
+    grad.addColorStop(0, '#360c17');
+    grad.addColorStop(0.5, '#4b1120');
+    grad.addColorStop(1, '#310a14');
     g.fillStyle = grad;
     g.fillRect(c.x, c.y, c.w, c.h);
 
@@ -115,33 +115,40 @@ export function renderStage(ctx, state, nowSec) {
   // 2. Velvet Stanchion Rope Shadow Alcoves (deep twilight cover pockets)
   for (const a of w.alcoves || []) drawShadowAlcove(ctx, a);
 
-  // 3. Stateful Brass Sconces: Lit Warm Chandelier Pools vs Doused Deep Shadow Sanctuaries!
+  // 3. DRAMATIC "Lighting That Shows What Is Safe": Huge Warm Golden Pools vs Deep Indigo Doused Sanctuaries!
   for (const l of state.lights) {
     if (l.lit) {
       const rad = l.r * (1 + Math.sin(nowSec * 1.7 + l.x * 0.02) * 0.015);
       const gr = ctx.createRadialGradient(l.x, l.y, 4, l.x, l.y, rad);
-      gr.addColorStop(0, 'rgba(255, 224, 152, 0.36)');
-      gr.addColorStop(0.5, 'rgba(201, 162, 82, 0.15)');
-      gr.addColorStop(1, 'rgba(20, 25, 38, 0)');
+      gr.addColorStop(0, 'rgba(255, 224, 132, 0.50)');
+      gr.addColorStop(0.36, 'rgba(228, 176, 78, 0.28)');
+      gr.addColorStop(0.72, 'rgba(186, 130, 44, 0.09)');
+      gr.addColorStop(1, 'rgba(9, 13, 22, 0)');
       ctx.fillStyle = gr;
       ctx.beginPath(); ctx.arc(l.x, l.y, rad, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(244, 212, 130, 0.16)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(l.x, l.y, rad * 0.68, 0, Math.PI * 2); ctx.stroke();
     } else {
-      // Freshly doused lamp plunges the area into a deep indigo shadow pocket!
-      const rad = l.r * 0.76;
+      // Freshly doused lamp plunges a full 150px zone into deep safe shadow!
+      const rad = l.r * 0.64;
       const dg = ctx.createRadialGradient(l.x, l.y, 4, l.x, l.y, rad);
-      dg.addColorStop(0, 'rgba(4, 7, 16, 0.78)');
-      dg.addColorStop(0.7, 'rgba(7, 12, 26, 0.52)');
-      dg.addColorStop(1, 'rgba(7, 12, 26, 0)');
+      dg.addColorStop(0, 'rgba(2, 5, 13, 0.86)');
+      dg.addColorStop(0.68, 'rgba(5, 10, 22, 0.58)');
+      dg.addColorStop(1, 'rgba(5, 10, 22, 0)');
       ctx.fillStyle = dg;
       ctx.beginPath(); ctx.arc(l.x, l.y, rad, 0, Math.PI * 2); ctx.fill();
       ctx.save();
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.34)';
-      ctx.setLineDash([4, 5]);
-      ctx.lineWidth = 1.2;
-      ctx.beginPath(); ctx.arc(l.x, l.y, rad * 0.84, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.48)';
+      ctx.setLineDash([5, 5]);
+      ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(l.x, l.y, rad * 0.82, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
     }
   }
+
+  // 3b. Linked Art-Deco Brass Floor Grates / Service Vents ([V] VENT)
+  drawBrassVents(ctx, w.vents || [], state);
 
   // 4. Curved Art-Deco Archway Doorways
   for (const ar of w.arches || []) drawArtDecoArch(ctx, ar);
@@ -222,8 +229,9 @@ export function renderStage(ctx, state, nowSec) {
     ctx.strokeStyle = '#92400e'; ctx.lineWidth = 1; ctx.stroke();
   }
 
-  // 15. Brass-Eye Domes, Infiltrator & Museum Curators/Docents/Inspectors
+  // 15. Brass-Eye Domes, Infiltrator, Museum Guards & Through-Wall Guard Footstep Sonar Rings!
   for (const cam of state.cameras) drawCameraDome(ctx, cam);
+  drawGuardFootsteps(ctx, state.guardSteps || []);
   if (state.mode !== 'debrief') drawInfiltrator(ctx, state);
   for (const g of state.guards) drawGuard(ctx, g);
 
@@ -465,33 +473,89 @@ function drawGuardCone(ctx, g) {
   ctx.closePath();
 
   const gr = ctx.createRadialGradient(g.x, g.y, 6, g.x, g.y, g.spec.visionRange);
-  let stroke = 'rgba(240, 208, 132, 0.52)';
+  let stroke = '#62e3ff';
   if (g.state === 'BREACH') {
-    gr.addColorStop(0, 'rgba(225, 29, 72, 0.56)');
-    gr.addColorStop(0.62, 'rgba(190, 18, 60, 0.28)');
-    gr.addColorStop(1, 'rgba(159, 18, 57, 0.06)');
-    stroke = 'rgba(253, 164, 175, 0.88)';
+    gr.addColorStop(0, 'rgba(255, 65, 85, 0.44)');
+    gr.addColorStop(0.62, 'rgba(235, 35, 65, 0.26)');
+    gr.addColorStop(1, 'rgba(180, 18, 45, 0.08)');
+    stroke = '#ff5568';
   } else if (g.state === 'SWEEPING') {
-    gr.addColorStop(0, 'rgba(234, 88, 12, 0.52)');
-    gr.addColorStop(0.62, 'rgba(168, 85, 247, 0.22)');
-    gr.addColorStop(1, 'rgba(126, 34, 206, 0.05)');
-    stroke = 'rgba(253, 186, 116, 0.86)';
+    gr.addColorStop(0, 'rgba(251, 146, 60, 0.44)');
+    gr.addColorStop(0.62, 'rgba(192, 132, 252, 0.24)');
+    gr.addColorStop(1, 'rgba(126, 34, 206, 0.06)');
+    stroke = '#fdba74';
   } else if (g.state === 'CURIOUS') {
-    gr.addColorStop(0, 'rgba(245, 158, 11, 0.52)');
-    gr.addColorStop(0.62, 'rgba(217, 119, 6, 0.25)');
-    gr.addColorStop(1, 'rgba(180, 83, 9, 0.06)');
-    stroke = 'rgba(253, 230, 138, 0.88)';
+    gr.addColorStop(0, 'rgba(255, 195, 50, 0.42)');
+    gr.addColorStop(0.62, 'rgba(245, 158, 11, 0.24)');
+    gr.addColorStop(1, 'rgba(202, 138, 4, 0.07)');
+    stroke = '#ffd15c';
   } else {
-    // Warm golden museum lantern cone (Art-Deco signature)
-    gr.addColorStop(0, 'rgba(240, 208, 132, 0.38)');
-    gr.addColorStop(0.62, 'rgba(201, 162, 82, 0.17)');
-    gr.addColorStop(1, 'rgba(201, 162, 82, 0.03)');
+    // High-contrast luminous moonlight-ice cyan raycast cone popping vividly against dark marble & velvet!
+    gr.addColorStop(0, 'rgba(64, 210, 255, 0.34)');
+    gr.addColorStop(0.62, 'rgba(56, 189, 248, 0.19)');
+    gr.addColorStop(1, 'rgba(14, 165, 233, 0.05)');
+    stroke = '#62e3ff';
   }
   ctx.fillStyle = gr;
   ctx.fill();
   ctx.strokeStyle = stroke;
-  ctx.lineWidth = g.state === 'PATROL' ? 1.2 : 1.7;
+  ctx.lineWidth = g.state === 'PATROL' ? 1.85 : 2.2;
   ctx.stroke();
+  ctx.restore();
+}
+
+function drawBrassVents(ctx, vents, state) {
+  if (!vents.length) return;
+  ctx.save();
+  // Subtle blueprint subterranean duct connector line between linked grates
+  if (vents.length >= 2 && state.mode !== 'debrief') {
+    ctx.strokeStyle = 'rgba(45, 212, 191, 0.16)';
+    ctx.setLineDash([4, 7]);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(vents[0].x, vents[0].y);
+    ctx.lineTo(vents[1].x, vents[1].y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  for (const v of vents) {
+    ctx.save();
+    ctx.translate(v.x, v.y);
+    ctx.fillStyle = '#121826';
+    ctx.strokeStyle = '#c9a252';
+    ctx.lineWidth = 1.6;
+    ctx.fillRect(-13, -11, 26, 22);
+    ctx.strokeRect(-13, -11, 26, 22);
+    // Art-Deco slotted brass ventilation louvers
+    ctx.strokeStyle = '#5eead4';
+    ctx.lineWidth = 1.4;
+    for (const sy of [-6, -2, 2, 6]) {
+      ctx.beginPath(); ctx.moveTo(-9, sy); ctx.lineTo(9, sy); ctx.stroke();
+    }
+    if (state.mode !== 'debrief') {
+      drawTag(ctx, 0, 19, 'VENT [V]', '#5eead4', 'rgba(9, 20, 28, 0.92)', '#2dd4bf', false);
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+function drawGuardFootsteps(ctx, steps) {
+  if (!steps.length) return;
+  ctx.save();
+  for (const s of steps) {
+    // Expanding acoustic footstep sonar arcs visible EVEN THROUGH WALLS to telegraph guard proximity!
+    const col = s.danger ? `rgba(255, 209, 92, ${s.alpha})` : `rgba(226, 232, 240, ${s.alpha})`;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 1.8;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(s.x, s.y, Math.max(4, s.r * 0.56), 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+    if (s.label) {
+      drawTag(ctx, s.x, s.y + s.r + 10, s.label, s.danger ? '#fef08a' : '#e2e8f0', 'rgba(10, 14, 24, 0.9)', s.danger ? '#f59e0b' : '#94a3b8');
+    }
+  }
   ctx.restore();
 }
 
@@ -799,8 +863,8 @@ function drawInfiltrator(ctx, state) {
   ctx.restore();
 
   if (hidden && state.detectionState !== 'BREACH') {
-    const lbl = p.inVeil ? 'VELVET VEIL' : p.inDoused ? 'DEEP SHADOW' : p.inAlcove ? 'SHADOW ALCOVE' : 'UNSEEN · SHADOW';
-    drawTag(ctx, p.x, p.y + 23, lbl, '#7dd3fc', 'rgba(10, 18, 32, 0.94)', '#38bdf8');
+    const lbl = p.inVeil ? 'VELVET VEIL' : p.inDoused ? 'DEEP SHADOW' : 'HIDDEN IN SHADOW';
+    drawTag(ctx, p.x, p.y + 23, lbl, '#6ee7b7', 'rgba(8, 22, 26, 0.95)', '#34d399');
   }
 }
 

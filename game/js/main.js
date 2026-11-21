@@ -5,7 +5,7 @@ import { buildSegments, computeVisionPolygon } from './vision.js';
 import { createCameras, createGuards, createTripwires, updateSecurity } from './patrol.js';
 import {
   claimSapphire, computeMods, douseNearbySconce, evaluateStealthSurface,
-  popVelvetVeil, spawnSparks, tossCoinLure, updateEffects, updatePlayer,
+  popVelvetVeil, spawnSparks, tossCoinLure, updateEffects, updatePlayer, useBrassVent,
 } from './detection.js';
 import { renderStage } from './render.js';
 import { SoundEngine } from './audio.js';
@@ -57,6 +57,7 @@ const state = {
   coinsInFlight: [],
   lastCoinArc: null,
   ripples: [],
+  guardSteps: [],
   veilsActive: [],
   particles: [],
   trail: [],
@@ -112,6 +113,7 @@ function loadWing(idx, resetRun = false) {
   state.coinsInFlight = [];
   state.lastCoinArc = null;
   state.ripples = [];
+  state.guardSteps = [];
   state.veilsActive = [];
   state.particles = [];
   state.trail = [{ x: state.wing.spawn.x, y: state.wing.spawn.y }];
@@ -233,11 +235,17 @@ function applyShotPreset(shot) {
     g0.lurePos = { x: 332, y: 408 };
     g0.callout = 'FOOTSTEP?';
 
-    // Curator II & Chief Inspector patrolling + Brass-Eye Dome sweeping east glass vitrine
+    // Curator II (beside east vitrine/column for crisp shadow cutout!) & Chief Inspector behind north archway w/ visible STEP sonar rings!
     state.guards[1].x = 576; state.guards[1].y = 288; state.guards[1].angle = 2.98; state.guards[1].state = 'PATROL';
     state.guards[2].x = 408; state.guards[2].y = 122; state.guards[2].angle = 0.72; state.guards[2].state = 'PATROL';
     state.cameras[0].angle = 2.48;
     state.tripwires[0].active = true;
+
+    // Behind-wall acoustic guard footstep sonar rings telegraphing unseen curators!
+    state.guardSteps = [
+      { x: 408, y: 122, r: 30, maxR: 48, alpha: 0.78, danger: false, label: 'STEP' },
+      { x: 576, y: 288, r: 26, maxR: 44, alpha: 0.65, danger: false },
+    ];
 
     evaluateStealthSurface(state, 0);
     recomputeAllCones();
@@ -288,6 +296,9 @@ function applyShotPreset(shot) {
     ];
     state.cameras[0].angle = 2.38;
     state.tripwires[0].active = true;
+    state.guardSteps = [
+      { x: 716, y: 478, r: 28, maxR: 48, alpha: 0.78, danger: true, label: 'STEP' },
+    ];
 
     evaluateStealthSurface(state, 0);
     recomputeAllCones();
@@ -347,6 +358,10 @@ function applyShotPreset(shot) {
 
     state.cameras[0].angle = 2.45;
     state.tripwires[0].active = true;
+    state.guardSteps = [
+      { x: 224, y: 110, r: 28, maxR: 48, alpha: 0.78, danger: false, label: 'STEP' },
+      { x: 648, y: 354, r: 24, maxR: 46, alpha: 0.68, danger: false },
+    ];
 
     evaluateStealthSurface(state, 0);
     recomputeAllCones();
@@ -459,6 +474,7 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyP' || e.code === 'Escape') { state.mode = 'paused'; setOverlay('paused'); }
   else if (e.code === 'KeyX') { loadWing(state.wingIndex, false); showRibbon(`WING ${state.wing.roman} RESTARTED`, false); }
   else if (e.code === 'KeyR') { douseNearbySconce(state, sound, showRibbon); syncHud(state); }
+  else if (e.code === 'KeyV') { useBrassVent(state, sound, showRibbon); syncHud(state); }
   else if (e.code === 'KeyE') { popVelvetVeil(state, sound, showRibbon); syncHud(state); }
   else if (e.code === 'KeyQ' || e.code === 'Space') {
     const tx = state.aim.active ? state.aim.x : state.player.x + Math.cos(state.player.angle) * 140;

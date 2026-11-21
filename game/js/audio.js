@@ -74,6 +74,33 @@ export class SoundEngine {
     this._tone(f0, onCarpet ? 0.055 : 0.04, onCarpet ? 'sine' : 'triangle', vol, f1);
   }
 
+  // Spatialized guard bootstep cue — audible & panned through walls to telegraph unseen curators
+  guardStep(pan = 0, proximity = 0.5) {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(145, now);
+    osc.frequency.exponentialRampToValueAtTime(58, now + 0.065);
+    const vol = Math.max(0.008, Math.min(0.055, proximity * 0.055));
+    gain.gain.setValueAtTime(vol, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
+    if (this.ctx.createStereoPanner) {
+      const panner = this.ctx.createStereoPanner();
+      panner.pan.setValueAtTime(Math.max(-1, Math.min(1, pan)), now);
+      osc.connect(gain); gain.connect(panner); panner.connect(this.ctx.destination);
+    } else {
+      osc.connect(gain); gain.connect(this.ctx.destination);
+    }
+    osc.start(now); osc.stop(now + 0.08);
+  }
+
+  ventClunk() {
+    this._tone(190, 0.09, 'square', 0.05, 85);
+    setTimeout(() => this._tone(240, 0.12, 'triangle', 0.045, 120), 65);
+  }
+
   coinClink() {
     this._tone(1980, 0.22, 'sine', 0.08, 2240);
     setTimeout(() => this._tone(2740, 0.28, 'triangle', 0.05, 2560), 38);

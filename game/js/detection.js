@@ -47,6 +47,38 @@ export function findNearestLitSconce(state, maxDist = 115) {
   return best;
 }
 
+export function findNearestVent(state, maxDist = 48) {
+  const p = state.player;
+  const vents = state.wing.vents || [];
+  let bestIdx = -1, bestD = maxDist;
+  for (let i = 0; i < vents.length; i++) {
+    const d = Math.hypot(p.x - vents[i].x, p.y - vents[i].y);
+    if (d < bestD) { bestD = d; bestIdx = i; }
+  }
+  return bestIdx;
+}
+
+export function useBrassVent(state, sound, onRibbon) {
+  const vents = state.wing.vents || [];
+  const idx = findNearestVent(state, 54);
+  if (idx < 0) {
+    if (onRibbon) onRibbon('STAND ON A BRASS FLOOR GRATE TO USE VENT [V]', false, 1.8);
+    return false;
+  }
+  const dest = vents[vents[idx].to];
+  if (!dest) return false;
+  spawnSparks(state, state.player.x, state.player.y, '#2dd4bf', 10);
+  state.player.x = dest.x;
+  state.player.y = dest.y;
+  state.player.crouched = true;
+  state.trail.push({ x: dest.x, y: dest.y });
+  spawnSparks(state, dest.x, dest.y, '#f4d482', 12);
+  if (sound) sound.ventClunk();
+  if (onRibbon) onRibbon('SLIPPED SILENTLY THROUGH SUBFLOOR BRASS VENT', false, 2.2);
+  evaluateStealthSurface(state, 0);
+  return true;
+}
+
 export function douseNearbySconce(state, sound, onRibbon) {
   const lamp = findNearestLitSconce(state, 120);
   if (!lamp) {
@@ -108,6 +140,7 @@ export function evaluateStealthSurface(state, dt) {
   }
   p.inDoused = inDoused;
   p.lampInRange = Boolean(findNearestLitSconce(state, 120));
+  p.ventInRange = findNearestVent(state, 54) >= 0;
 
   const rawShadow = p.inVeil || p.inDoused || p.inAlcove || (settee && p.crouched) || lightAmt < 0.16;
   if (rawShadow) {
@@ -267,6 +300,12 @@ export function updateEffects(state, dt, sound) {
     sm.timer -= dt;
     sm.alpha = sm.timer < 1.5 ? Math.max(0, (sm.timer / 1.5) * 0.9) : 0.9;
     if (sm.timer <= 0) state.veilsActive.splice(i, 1);
+  }
+  for (let i = state.guardSteps.length - 1; i >= 0; i--) {
+    const gs = state.guardSteps[i];
+    gs.r += 34 * dt;
+    gs.alpha -= dt * 0.72;
+    if (gs.alpha <= 0.02 || gs.r >= gs.maxR) state.guardSteps.splice(i, 1);
   }
   for (let i = state.particles.length - 1; i >= 0; i--) {
     const pt = state.particles[i];

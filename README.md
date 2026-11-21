@@ -18,7 +18,9 @@ An original 1920s Art-Deco 2.5D top-down tactical stealth heist across five gran
 - **3 Active Stealth Gadgets + Light Manipulation (`game/js/detection.js`)**:
   - **`[Q]` / `LMB` Coin Lure**: Toss brass coins along a curved golden arc (`CLINK!`) to pull curators off sightlines (`FOOTSTEP?`).
   - **`[E]` Velvet Veil**: Release a billowing violet-silver smoke cloud that physically slices vision cones.
-  - **`[R]` Douse Lamp**: Extinguish nearby Art-Deco brass sconces to plunge corridors into `DEEP SHADOW` sanctuaries (`DARKENED LAMP?`).
+  - **`[R]` Douse Lamp**: Extinguish nearby Art-Deco brass sconces to plunge 150px warm pools into `DEEP SHADOW` sanctuaries (`DARKENED LAMP?`).
+  - **`[V]` Brass Vent**: Slip silently through linked subfloor brass floor grates underneath walls and laser tripwires.
+- **Through-Wall Guard Footstep Sonar (`game/js/patrol.js`, `game/js/audio.js`)**: Moving curators emit directional stereo footsteps and visible expanding acoustic sonar rings (`STEP`) through masonry walls to telegraph approaching patrols.
 - **4-State Escalation & Live Per-Curator Telemetry (`game/js/patrol.js`, `game/js/ui.js`)**: Track every curator's real-time AI state (`PATROL`, `CURIOUS ?`, `SWEEPING`, `BREACH !`) and suspicion bar alongside live wing objectives.
 - **Golden Infiltration Debrief (`game/js/render.js`)**: Upon boarding the Brass Elevator, inspect your `GHOST RATING: S` ledger paired with your dashed golden infiltration path across the museum floorplan.
 

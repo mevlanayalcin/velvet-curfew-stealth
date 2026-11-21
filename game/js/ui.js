@@ -1,4 +1,4 @@
-// Velvet Curfew v3 — Live Objectives, 4 Stealth Gadgets, Per-Curator AI Telemetry & Debrief Ledger
+// Velvet Curfew v4 — Contact-Sheet-Legible HUD, 4 Gadgets (Coin/Veil/Douse/Vent) & Live Curators
 
 import { WINGS } from './levels.js';
 
@@ -22,10 +22,10 @@ export function renderWingPicker(selectedIndex, onSelect) {
 }
 
 const STATE_COPY = {
-  UNSEEN: { cls: 'unseen', label: 'UNSEEN', copy: 'Hidden in midnight velvet.' },
-  CURIOUS: { cls: 'curious', label: 'CURIOUS · ?', copy: 'A curator heard glass shift. Hold still.' },
-  BREACH: { cls: 'breach', label: 'CURFEW BREACH · !', copy: 'Docents converging on the gallery!' },
-  SWEEPING: { cls: 'sweeping', label: 'SWEEPING', copy: 'Security sweeping the last shadow.' },
+  UNSEEN: { cls: 'unseen', label: 'UNSEEN', copy: 'Safe in deep shadow.' },
+  CURIOUS: { cls: 'curious', label: 'CURIOUS · ?', copy: 'Curator heard glass shift.' },
+  BREACH: { cls: 'breach', label: 'BREACH · !', copy: 'Docents converging now!' },
+  SWEEPING: { cls: 'sweeping', label: 'SWEEPING', copy: 'Hunting your last shadow.' },
 };
 
 const ROMANS = ['I', 'II', 'III', 'IV', 'V'];
@@ -37,11 +37,11 @@ export function syncHud(state) {
 
   $('hud-wing-roman').textContent = w.roman;
   $('hud-wing-name').textContent = w.title;
-  $('hud-gallery').textContent = `${w.roman} / V`;
+  $('hud-gallery').textContent = `${w.roman}/V`;
   $('hud-timer').textContent = formatTime(state.time);
-  $('hud-score').textContent = `+${state.score.toLocaleString('en-US')}`;
+  $('hud-score').textContent = state.score.toLocaleString('en-US');
   $('hud-objective').textContent = state.sapphireTaken
-    ? `✦ Star Sapphire secured — board the Brass Elevator unseen`
+    ? `✦ Star Sapphire taken — board the Brass Elevator unseen`
     : w.objective;
 
   document.querySelector('.main-split').classList.toggle('debrief-mode', isDebrief);
@@ -51,14 +51,12 @@ export function syncHud(state) {
 
   if (isDebrief) return;
 
-  // Detection State Banner
   const meta = STATE_COPY[state.detectionState] || STATE_COPY.UNSEEN;
   const badge = $('hud-state-badge');
   badge.textContent = meta.label;
   badge.className = `state-badge ${meta.cls}`;
   $('hud-state-copy').textContent = meta.copy;
 
-  // Curfew Bells
   const pips = $('hud-bells').children;
   for (let i = 0; i < 3; i++) {
     pips[i].className = `bpip${i < state.bellCount ? (state.detectionState === 'BREACH' || state.bellCount >= 2 ? ' ring' : ' warn') : ''}`;
@@ -67,36 +65,33 @@ export function syncHud(state) {
   bw.textContent = state.bellCount === 0 ? 'HUSHED' : state.bellCount === 1 ? 'TOLLED' : state.bellCount === 2 ? 'HIGH' : 'LOCKED';
   bw.className = `bell-word ${state.bellCount >= 1 ? 'crimson' : ''}`;
 
-  // Exposure & Noise Bars
   const ew = $('hud-exp-word'), ef = $('hud-exp-fill');
   if (p.inVeil) {
-    ew.textContent = 'VELVET VEIL'; ew.className = 'mval cyan';
+    ew.textContent = 'VELVET VEIL'; ew.className = 'mval violet';
     ef.className = 'mfill exp-shadow'; ef.style.width = '10%';
   } else if (p.inDoused) {
-    ew.textContent = 'DEEP SHADOW'; ew.className = 'mval cyan';
+    ew.textContent = 'DEEP SHADOW'; ew.className = 'mval emerald';
     ef.className = 'mfill exp-shadow'; ef.style.width = '10%';
   } else if (p.inLight) {
-    ew.textContent = 'CHANDELIER'; ew.className = 'mval amber';
-    ef.className = 'mfill exp-light'; ef.style.width = `${Math.round(Math.max(66, p.exposure * 100))}%`;
+    ew.textContent = 'LIT POOL'; ew.className = 'mval amber';
+    ef.className = 'mfill exp-light'; ef.style.width = `${Math.round(Math.max(72, p.exposure * 100))}%`;
   } else {
-    ew.textContent = p.inAlcove ? 'SHADOW ALCOVE' : 'DEEP SHADOW'; ew.className = 'mval emerald';
+    ew.textContent = 'DEEP SHADOW'; ew.className = 'mval emerald';
     ef.className = 'mfill exp-shadow'; ef.style.width = `${Math.round(Math.max(12, p.exposure * 100))}%`;
   }
 
   const nw = $('hud-noise-word'), nf = $('hud-noise-fill');
   const loud = p.noise >= 48 || state.detectionState === 'BREACH';
-  nw.textContent = loud ? 'ECHOING' : p.noise >= 24 ? 'SOFT STEP' : 'SILENT';
+  nw.textContent = loud ? 'ECHOING' : p.noise >= 24 ? 'SOFT' : 'SILENT';
   nw.className = `mval ${loud ? 'crimson' : 'cyan'}`;
   nf.className = `mfill ${loud ? 'noise-loud' : 'noise-calm'}`;
-  nf.style.width = `${Math.min(100, Math.max(8, Math.round(loud ? Math.max(82, p.noise) : p.noise)))}%`;
+  nf.style.width = `${Math.min(100, Math.max(10, Math.round(loud ? Math.max(85, p.noise) : p.noise)))}%`;
 
-  // Live Objectives Checklist
-  const relicsBonusDone = state.relicItems.filter((r) => r.taken).length;
+  // Compact 3-Item Objectives
   const objR = $('obj-relics');
-  $('obj-relics-txt').textContent = `Loot relics (${state.relicsTaken}/${state.relicsTotal})`;
-  const relicsComplete = relicsBonusDone >= state.relicItems.length && state.relicItems.length > 0;
-  objR.className = `oc-row${relicsComplete || state.relicsTaken >= 2 ? ' done' : ''}`;
-  objR.querySelector('.oc-box').textContent = relicsComplete || state.relicsTaken >= 2 ? '✓' : '○';
+  $('obj-relics-txt').textContent = `Relics (${state.relicsTaken}/${state.relicsTotal})`;
+  objR.className = `oc-row${state.relicsTaken >= 2 ? ' done' : ''}`;
+  objR.querySelector('.oc-box').textContent = state.relicsTaken >= 2 ? '✓' : '○';
 
   const objS = $('obj-sapphire');
   objS.className = `oc-row ${state.sapphireTaken ? 'done' : 'active'}`;
@@ -106,53 +101,30 @@ export function syncHud(state) {
   objE.className = `oc-row ${state.sapphireTaken ? 'active' : ''}`;
   objE.querySelector('.oc-box').textContent = state.sapphireTaken ? '▸' : '○';
 
-  // 4 Gadgets
-  renderDots($('hud-coins'), state.coins, state.maxCoins);
-  renderDots($('hud-veils'), state.veils, state.maxVeils);
+  // Bold 2x2 Gadgets Grid
+  $('hud-coins-val').textContent = `×${state.coins}`;
+  $('hud-veils-val').textContent = `×${state.veils}`;
+  $('hud-douse-val').textContent = p.lampInRange ? 'READY!' : `${state.dousedCount} OFF`;
+  $('gbox-douse').className = `gbox${p.lampInRange ? ' hot' : ''}`;
+  $('hud-vent-val').textContent = p.ventInRange ? 'ENTER!' : 'LINKED';
+  $('gbox-vent').className = `gbox${p.ventInRange ? ' hot' : ''}`;
 
-  const dEl = $('hud-douse');
-  if (p.lampInRange) {
-    dEl.textContent = 'IN RANGE';
-    dEl.className = 'stance-pill ready';
-  } else {
-    dEl.textContent = state.dousedCount > 0 ? `${state.dousedCount} DOUSED` : 'READY';
-    dEl.className = 'stance-pill on';
-  }
-
-  const st = $('hud-stance');
-  st.textContent = p.crouched ? 'CROUCHED' : 'UPRIGHT';
-  st.className = `stance-pill${p.crouched ? ' on' : ' up'}`;
-
-  // CURATORS · LIVE Per-Guard AI Telemetry & Suspicion Bars
+  // CURATORS · LIVE (Top 3 most relevant units w/ thick 6px readable bars!)
   const host = $('hud-curators-live');
-  const cards = [];
-  state.guards.slice(0, 4).forEach((g, idx) => {
+  const sorted = [...state.guards].sort((a, b) => {
+    const rank = { BREACH: 3, SWEEPING: 2, CURIOUS: 1, PATROL: 0 };
+    return (rank[b.state] || 0) - (rank[a.state] || 0);
+  });
+  host.innerHTML = sorted.slice(0, 3).map((g, idx) => {
     const role = g.type === 'inspector' ? 'INSPECTOR' : g.type === 'docent' ? 'DOCENT' : 'CURATOR';
     const stKey = g.state === 'BREACH' ? 'breach' : g.state === 'SWEEPING' ? 'sweeping' : g.state === 'CURIOUS' ? 'curious' : 'patrol';
     const stLabel = g.state === 'BREACH' ? 'BREACH !' : g.state === 'SWEEPING' ? 'SWEEPING' : g.state === 'CURIOUS' ? 'CURIOUS ?' : 'PATROL';
-    const pct = g.state === 'BREACH' ? 100 : g.state === 'SWEEPING' ? Math.max(58, Math.round(g.suspicion * 100)) : g.state === 'CURIOUS' ? Math.max(52, Math.round(g.suspicion * 100)) : 12;
-    cards.push(`<div class="cur-card ${stKey}">
-      <div class="cur-top"><span class="cur-name">${role} ${ROMANS[idx] || idx + 1}</span><span class="cur-st ${stKey}">${stLabel}</span></div>
+    const pct = g.state === 'BREACH' ? 100 : g.state === 'SWEEPING' ? Math.max(66, Math.round(g.suspicion * 100)) : g.state === 'CURIOUS' ? Math.max(64, Math.round(g.suspicion * 100)) : 24;
+    return `<div class="cur-card ${stKey}">
+      <div class="cur-top"><span class="cur-name">${role} ${ROMANS[g.id] || idx + 1}</span><span class="cur-st ${stKey}">${stLabel}</span></div>
       <div class="cur-bar"><div class="cur-fill ${stKey}" style="width:${pct}%"></div></div>
-    </div>`);
-  });
-  if (state.cameras.length > 0 && cards.length < 4) {
-    const camAlert = state.cameras.some((c) => c.alerting);
-    cards.push(`<div class="cur-card${camAlert ? ' breach' : ''}">
-      <div class="cur-top"><span class="cur-name">BRASS-EYE DOME</span><span class="cur-st ${camAlert ? 'breach' : 'eye'}">${camAlert ? 'LOCKED !' : 'SWEEPING'}</span></div>
-      <div class="cur-bar"><div class="cur-fill ${camAlert ? 'breach' : 'eye'}" style="width:${camAlert ? 100 : 48}%"></div></div>
-    </div>`);
-  }
-  host.innerHTML = cards.join('');
-}
-
-function renderDots(el, cur, max) {
-  el.innerHTML = '';
-  for (let i = 0; i < Math.min(5, max); i++) {
-    const d = document.createElement('span');
-    d.className = `gdot${i >= cur ? ' used' : ''}`;
-    el.appendChild(d);
-  }
+    </div>`;
+  }).join('');
 }
 
 export function setOverlay(mode) {
