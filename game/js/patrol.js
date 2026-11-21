@@ -104,16 +104,26 @@ export function updateCuratorPatrols(state, dt, sound, onCaught, onRibbon) {
         g.peakSuspicion = 0; g.lurePos = null; g.callout = null; g.target = null; g.state = 'PATROL';
       }
     } else {
-      const wp = g.waypoints[g.wpIndex];
+      while (g.crumbs.length && Math.hypot(g.crumbs[g.crumbs.length - 1].x - g.x, g.crumbs[g.crumbs.length - 1].y - g.y) < 8) g.crumbs.pop();
+      const wp = g.crumbs.length ? g.crumbs[g.crumbs.length - 1] : g.waypoints[g.wpIndex];
       const tx = wp.x - g.x, ty = wp.y - g.y, td = Math.hypot(tx, ty);
-      if (td < 8) g.wpIndex = (g.wpIndex + 1) % g.waypoints.length;
-      else {
+      if (td < 8) {
+        if (g.crumbs.length) g.crumbs.pop();
+        else g.wpIndex = (g.wpIndex + 1) % g.waypoints.length;
+      } else {
         g.angle = turnToward(g.angle, Math.atan2(ty, tx), 3.4 * dt);
         moveWithSlide(g, (tx / td) * g.spec.speed * dt, (ty / td) * g.spec.speed * dt, obs);
       }
     }
 
     const movedDist = Math.hypot(g.x - prevX, g.y - prevY);
+    g.stallT = movedDist > 12 * dt ? 0 : g.stallT + dt;
+    if (g.state !== 'PATROL') {
+      if (!g.crumbs.length) g.crumbs.push({ x: prevX, y: prevY });
+      const c = g.crumbs[g.crumbs.length - 1];
+      if (Math.hypot(g.x - c.x, g.y - c.y) > 6) g.crumbs.push({ x: g.x, y: g.y });
+      if (g.state === 'CURIOUS' && g.stallT > 0.9) { g.state = 'SWEEPING'; g.stateTimer = 2.4; g.target = null; g.callout = 'SWEEPING'; }
+    }
     if (movedDist > 0.25) {
       g.stepTimer -= dt;
       if (g.stepTimer <= 0) {
@@ -179,7 +189,7 @@ export function createGuards(wing, geom) {
       state: 'PATROL', suspicion: 0, peakSuspicion: 0, stateTimer: 0,
       waypoints: g.waypoints.map((w) => ({ x: w.x, y: w.y })), wpIndex: 0,
       target: null, lurePos: null, callout: null, searchDir: 1,
-      hitCooldown: 0, stepTimer: 0.2 + idx * 0.14, visionPoly: [],
+      hitCooldown: 0, stepTimer: 0.2 + idx * 0.14, crumbs: [], stallT: 0, visionPoly: [],
     };
     guard.visionPoly = computeRaycastVisionCone(guard.x, guard.y, guard.angle, spec.fov, spec.visionRange, geom, []);
     return guard;

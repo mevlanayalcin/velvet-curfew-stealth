@@ -23,7 +23,7 @@ html, body {
   display: flex; align-items: center; justify-content: center;
   user-select: none; -webkit-font-smoothing: antialiased;
 }
-.app-frame { width: 1280px; height: 720px; overflow: hidden; display: grid; grid-template-rows: 40px 648px 32px; background: var(--obs); position: relative; }
+.app-frame { flex: 0 0 auto; width: 1280px; height: 720px; overflow: hidden; display: grid; grid-template-rows: 40px 648px 32px; background: var(--obs); position: relative; }
 .mono { font-family: var(--mono); }
 .gold { color: var(--brass-hi); }
 .emerald { color: var(--emerald); }
