@@ -1,4 +1,4 @@
-// Velvet Curfew v2b — Infiltrator Movement, Alcove/Settee Hiding, Coin Lure, Velvet Veil & Trail
+// Velvet Curfew v3 — Movement, Alcove/Settee Hiding, Coin Lure, Velvet Veil & [R] Douse Sconce
 
 import { STAGE_H, STAGE_W } from './levels.js';
 import { notifySound } from './patrol.js';
@@ -21,7 +21,7 @@ export function computeMods(perks) {
 export function resolveMovement(entity, obstacles) {
   for (let i = 0; i < obstacles.length; i++) {
     const o = obstacles[i];
-    if (o.kind === 'settee') continue; // Crouch behind/beside tufted velvet settees
+    if (o.kind === 'settee') continue;
     const cx = Math.max(o.x, Math.min(entity.x, o.x + o.w));
     const cy = Math.max(o.y, Math.min(entity.y, o.y + o.h));
     const dx = entity.x - cx, dy = entity.y - cy;
@@ -36,34 +36,80 @@ export function resolveMovement(entity, obstacles) {
   entity.y = Math.max(20, Math.min(STAGE_H - 20, entity.y));
 }
 
+export function findNearestLitSconce(state, maxDist = 115) {
+  const p = state.player;
+  let best = null, bestD = maxDist;
+  for (const l of state.lights) {
+    if (!l.lit) continue;
+    const d = Math.hypot(p.x - l.x, p.y - l.y);
+    if (d < bestD) { bestD = d; best = l; }
+  }
+  return best;
+}
+
+export function douseNearbySconce(state, sound, onRibbon) {
+  const lamp = findNearestLitSconce(state, 120);
+  if (!lamp) {
+    if (onRibbon) onRibbon('MOVE NEAR A LIT BRASS SCONCE TO DOUSE [R]', false, 1.8);
+    return false;
+  }
+  lamp.lit = false;
+  lamp.dousePulse = 1.0;
+  state.dousedCount += 1;
+  state.score += Math.round(100 * state.mods.scoreMult);
+  spawnSparks(state, lamp.x, lamp.y, '#94a3b8', 12);
+  if (sound) sound.smokeHiss();
+
+  // Nearby curator notices the extinguished lamp ("DARKENED LAMP?")
+  let alerted = false;
+  for (const g of state.guards) {
+    if (g.state === 'BREACH') continue;
+    if (Math.hypot(g.x - lamp.x, g.y - lamp.y) < 175) {
+      g.target = { x: lamp.x, y: lamp.y };
+      g.state = 'CURIOUS';
+      g.callout = 'DARKENED LAMP?';
+      g.suspicion = Math.max(g.suspicion, 0.45);
+      g.peakSuspicion = Math.max(g.peakSuspicion, g.suspicion);
+      g.stateTimer = 2.8;
+      alerted = true;
+    }
+  }
+  if (alerted && sound) sound.suspicionSting();
+  if (onRibbon) onRibbon('BRASS SCONCE DOUSED — DEEP SHADOW EXPANDED (+100)', false, 2.2);
+  evaluateStealthSurface(state, 0);
+  return true;
+}
+
 export function evaluateStealthSurface(state, dt) {
   const p = state.player;
   const w = state.wing;
   p.onCarpet = (w.carpets || []).some((c) => p.x >= c.x && p.x <= c.x + c.w && p.y >= c.y && p.y <= c.y + c.h);
   p.inVeil = state.veilsActive.some((s) => s.alpha > 0.22 && Math.hypot(p.x - s.x, p.y - s.y) <= s.r * 0.92);
-
-  // Inside velvet stanchion shadow alcove?
   p.inAlcove = (w.alcoves || []).some((a) => p.x >= a.x && p.x <= a.x + a.w && p.y >= a.y && p.y <= a.y + a.h);
 
-  // Tucked behind/beside tufted crimson velvet settee or ornate bronze folding screen?
   let settee = false;
   for (const o of w.obstacles) {
     if (o.kind !== 'settee' && o.kind !== 'screen') continue;
     const pad = 16;
-    if (p.x >= o.x - pad && p.x <= o.x + o.w + pad && p.y >= o.y - pad && p.y <= o.y + o.h + pad) {
-      settee = true;
-      break;
-    }
+    if (p.x >= o.x - pad && p.x <= o.x + o.w + pad && p.y >= o.y - pad && p.y <= o.y + o.h + pad) { settee = true; break; }
   }
   p.inSettee = settee;
 
+  // Check active lit sconces vs doused dark shadow sanctuaries!
   let lightAmt = 0;
-  for (const l of w.lights) {
+  let inDoused = false;
+  for (const l of state.lights) {
     const d = Math.hypot(p.x - l.x, p.y - l.y);
-    if (d < l.r * 0.9) lightAmt = Math.max(lightAmt, 1 - d / (l.r * 0.9));
+    if (l.lit) {
+      if (d < l.r * 0.9) lightAmt = Math.max(lightAmt, 1 - d / (l.r * 0.9));
+    } else if (d < l.r * 0.74) {
+      inDoused = true;
+    }
   }
+  p.inDoused = inDoused;
+  p.lampInRange = Boolean(findNearestLitSconce(state, 120));
 
-  const rawShadow = p.inVeil || p.inAlcove || (settee && p.crouched) || lightAmt < 0.16;
+  const rawShadow = p.inVeil || p.inDoused || p.inAlcove || (settee && p.crouched) || lightAmt < 0.16;
   if (rawShadow) {
     p.shadowLingerTimer = state.mods.shadowLinger;
     p.inShadow = true;
@@ -73,8 +119,8 @@ export function evaluateStealthSurface(state, dt) {
   } else {
     p.inShadow = false;
   }
-  p.inLight = !p.inVeil && !(settee && p.crouched) && !p.inAlcove && lightAmt >= 0.22;
-  p.exposure = p.inVeil ? 0.06 : p.inAlcove || (settee && p.crouched) ? 0.12 : p.inShadow ? 0.18 : Math.min(1, 0.36 + lightAmt * 0.64);
+  p.inLight = !p.inVeil && !p.inDoused && !(settee && p.crouched) && !p.inAlcove && lightAmt >= 0.22;
+  p.exposure = p.inVeil ? 0.06 : p.inDoused ? 0.08 : p.inAlcove || (settee && p.crouched) ? 0.12 : p.inShadow ? 0.18 : Math.min(1, 0.36 + lightAmt * 0.64);
 }
 
 export function updatePlayer(state, input, dt, sound, onRibbon, onWingClear) {
@@ -96,12 +142,8 @@ export function updatePlayer(state, input, dt, sound, onRibbon, onWingClear) {
     p.y += my * spd * dt;
     p.angle = Math.atan2(my, mx);
     resolveMovement(p, state.wing.obstacles);
-
-    // Record golden infiltration breadcrumb every ~22px for Debrief map
     const last = state.trail[state.trail.length - 1];
-    if (!last || Math.hypot(p.x - last.x, p.y - last.y) > 22) {
-      state.trail.push({ x: p.x, y: p.y });
-    }
+    if (!last || Math.hypot(p.x - last.x, p.y - last.y) > 22) state.trail.push({ x: p.x, y: p.y });
   }
 
   evaluateStealthSurface(state, dt);
@@ -122,7 +164,6 @@ export function updatePlayer(state, input, dt, sound, onRibbon, onWingClear) {
     }
   } else p.stepTimer = 0.1;
 
-  // Claim Star Sapphire & Gilded Museum Relics
   const pickR = 30 + state.mods.lootRangeBonus;
   if (!state.sapphireTaken && Math.hypot(p.x - state.wing.sapphire.x, p.y - state.wing.sapphire.y) < pickR) {
     claimSapphire(state, sound, onRibbon);
@@ -137,7 +178,6 @@ export function updatePlayer(state, input, dt, sound, onRibbon, onWingClear) {
     }
   }
 
-  // Board Brass Elevator Exit once Star Sapphire is secured
   const el = state.wing.elevator;
   if (state.sapphireTaken && Math.hypot(p.x - el.x, p.y - el.y) < el.r + p.r) {
     if (sound) sound.extractChord();
@@ -157,10 +197,7 @@ export function claimSapphire(state, sound, onRibbon) {
 }
 
 export function tossCoinLure(state, tx, ty, sound, onRibbon) {
-  if (state.coins <= 0) {
-    if (onRibbon) onRibbon('NO BRASS COINS LEFT', false);
-    return false;
-  }
+  if (state.coins <= 0) { if (onRibbon) onRibbon('NO BRASS COINS LEFT', false); return false; }
   const p = state.player;
   const maxD = 235 * state.mods.throwRangeMult;
   let dx = tx - p.x, dy = ty - p.y;
@@ -177,10 +214,7 @@ export function tossCoinLure(state, tx, ty, sound, onRibbon) {
 }
 
 export function popVelvetVeil(state, sound, onRibbon) {
-  if (state.veils <= 0) {
-    if (onRibbon) onRibbon('NO VELVET VEIL CHARGES LEFT', false);
-    return false;
-  }
+  if (state.veils <= 0) { if (onRibbon) onRibbon('NO VELVET VEIL CHARGES LEFT', false); return false; }
   const p = state.player;
   state.veils -= 1;
   const dur = 6.8 + state.mods.smokeDurationBonus;

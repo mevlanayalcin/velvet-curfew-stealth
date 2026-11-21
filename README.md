@@ -15,17 +15,21 @@ An original 1920s Art-Deco 2.5D top-down tactical stealth heist across five gran
 
 ## Core Stealth Mechanics
 - **True 2D Raycast Sightlines (`game/js/vision.js`)**: Lantern cones from Night Curators, Gallery Docents, Chief Inspectors, and Brass-Eye security domes cast pixel-accurate rays against brass-inlaid masonry walls, octagonal marble columns, gilded mahogany glass vitrines, ornate bronze screens, and drifting Velvet Smoke Veil clouds.
-- **4-State Curfew Escalation (`game/js/patrol.js`)**: `UNSEEN` → `CURIOUS · ?` (Brass Coin Lure `CLINK!` & `FOOTSTEP?`) → `CURFEW BREACH · !` (`CURFEW BELL!` convergence) → `SWEEPING` (translucent ghost silhouette at `LAST GLIMPSE`).
-- **Art-Deco Cover & Gadgets (`game/js/detection.js`)**: Crouch (`SHIFT`) behind tufted crimson velvet settees or inside stanchion rope `SHADOW ALCOVE`s; toss Brass Coin Lures (`Q`/`LMB`) with curved golden trajectories; deploy Violet-Silver Velvet Smoke Veils (`E`) to sever vision cones.
-- **Golden Infiltration Debrief (`game/js/render.js`, `game/js/ui.js`)**: Upon reaching the Brass Elevator, review your Ghost Rating (`S/A/B`) alongside your dashed golden infiltration path across the completed museum wing.
+- **3 Active Stealth Gadgets + Light Manipulation (`game/js/detection.js`)**:
+  - **`[Q]` / `LMB` Coin Lure**: Toss brass coins along a curved golden arc (`CLINK!`) to pull curators off sightlines (`FOOTSTEP?`).
+  - **`[E]` Velvet Veil**: Release a billowing violet-silver smoke cloud that physically slices vision cones.
+  - **`[R]` Douse Lamp**: Extinguish nearby Art-Deco brass sconces to plunge corridors into `DEEP SHADOW` sanctuaries (`DARKENED LAMP?`).
+- **4-State Escalation & Live Per-Curator Telemetry (`game/js/patrol.js`, `game/js/ui.js`)**: Track every curator's real-time AI state (`PATROL`, `CURIOUS ?`, `SWEEPING`, `BREACH !`) and suspicion bar alongside live wing objectives.
+- **Golden Infiltration Debrief (`game/js/render.js`)**: Upon boarding the Brass Elevator, inspect your `GHOST RATING: S` ledger paired with your dashed golden infiltration path across the museum floorplan.
 
 ## Controls
 - `WASD` / `Arrows` — Move
 - `SHIFT` — Crouch (conceal behind velvet settees & silent step)
 - `Q` / `LMB` / `SPACE` — Toss Brass Coin Lure
 - `E` — Release Velvet Smoke Veil
+- `R` — Douse Nearby Brass Sconce
 - `F` — Loot / Toggle Crouch
-- `P` — Pause · `M` — Mute · `R` — Restart Wing
+- `P` — Pause · `M` — Mute · `X` — Restart Wing
 
 ## Run Locally
 ```bash

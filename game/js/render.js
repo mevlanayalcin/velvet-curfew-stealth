@@ -115,15 +115,32 @@ export function renderStage(ctx, state, nowSec) {
   // 2. Velvet Stanchion Rope Shadow Alcoves (deep twilight cover pockets)
   for (const a of w.alcoves || []) drawShadowAlcove(ctx, a);
 
-  // 3. Warm Chandelier Light Pools (soft amber glow contrasting shadow alcoves)
-  for (const l of w.lights) {
-    const rad = l.r * (1 + Math.sin(nowSec * 1.7 + l.x * 0.02) * 0.015);
-    const gr = ctx.createRadialGradient(l.x, l.y, 4, l.x, l.y, rad);
-    gr.addColorStop(0, 'rgba(255, 224, 152, 0.34)');
-    gr.addColorStop(0.5, 'rgba(201, 162, 82, 0.14)');
-    gr.addColorStop(1, 'rgba(20, 25, 38, 0)');
-    ctx.fillStyle = gr;
-    ctx.beginPath(); ctx.arc(l.x, l.y, rad, 0, Math.PI * 2); ctx.fill();
+  // 3. Stateful Brass Sconces: Lit Warm Chandelier Pools vs Doused Deep Shadow Sanctuaries!
+  for (const l of state.lights) {
+    if (l.lit) {
+      const rad = l.r * (1 + Math.sin(nowSec * 1.7 + l.x * 0.02) * 0.015);
+      const gr = ctx.createRadialGradient(l.x, l.y, 4, l.x, l.y, rad);
+      gr.addColorStop(0, 'rgba(255, 224, 152, 0.36)');
+      gr.addColorStop(0.5, 'rgba(201, 162, 82, 0.15)');
+      gr.addColorStop(1, 'rgba(20, 25, 38, 0)');
+      ctx.fillStyle = gr;
+      ctx.beginPath(); ctx.arc(l.x, l.y, rad, 0, Math.PI * 2); ctx.fill();
+    } else {
+      // Freshly doused lamp plunges the area into a deep indigo shadow pocket!
+      const rad = l.r * 0.76;
+      const dg = ctx.createRadialGradient(l.x, l.y, 4, l.x, l.y, rad);
+      dg.addColorStop(0, 'rgba(4, 7, 16, 0.78)');
+      dg.addColorStop(0.7, 'rgba(7, 12, 26, 0.52)');
+      dg.addColorStop(1, 'rgba(7, 12, 26, 0)');
+      ctx.fillStyle = dg;
+      ctx.beginPath(); ctx.arc(l.x, l.y, rad, 0, Math.PI * 2); ctx.fill();
+      ctx.save();
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.34)';
+      ctx.setLineDash([4, 5]);
+      ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(l.x, l.y, rad * 0.84, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
   }
 
   // 4. Curved Art-Deco Archway Doorways
@@ -146,17 +163,32 @@ export function renderStage(ctx, state, nowSec) {
     if (o.kind !== 'settee') drawTallMuseumProp(ctx, o);
   }
 
-  // 9. Art-Deco Ceiling Chandelier Starbursts
-  for (const l of w.lights) {
+  // 9. Art-Deco Ceiling Chandelier / Brass Sconce Fixtures (Lit vs Doused w/ indigo smoke wisps)
+  for (const l of state.lights) {
     ctx.save();
     ctx.translate(l.x, l.y);
-    ctx.fillStyle = '#20180f';
-    ctx.beginPath(); ctx.arc(0, 0, 6.2, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#c9a252';
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-    ctx.fillStyle = '#fef3c7';
-    ctx.beginPath(); ctx.arc(0, 0, 3.2, 0, Math.PI * 2); ctx.fill();
+    if (l.lit) {
+      ctx.fillStyle = '#20180f';
+      ctx.beginPath(); ctx.arc(0, 0, 6.4, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#c9a252'; ctx.lineWidth = 1.3; ctx.stroke();
+      ctx.fillStyle = '#fef3c7';
+      ctx.beginPath(); ctx.arc(0, 0, 3.3, 0, Math.PI * 2); ctx.fill();
+    } else {
+      // Extinguished dark brass sconce with delicate indigo smoke wisps & DOUSED tag
+      ctx.fillStyle = '#0f1420';
+      ctx.beginPath(); ctx.arc(0, 0, 6.4, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#64748b'; ctx.lineWidth = 1.3; ctx.stroke();
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.55)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(-3, -3); ctx.lineTo(3, 3); ctx.moveTo(3, -3); ctx.lineTo(-3, 3); ctx.stroke();
+      // Subtle curling smoke wisps
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.42)';
+      ctx.beginPath(); ctx.arc(5, -7, 4, 0.4, Math.PI * 1.4); ctx.stroke();
+      ctx.beginPath(); ctx.arc(-4, -10, 3, 1.0, Math.PI * 1.9); ctx.stroke();
+      if (state.mode !== 'debrief') {
+        drawTag(ctx, 0, 18, 'DOUSED', '#93c5fd', 'rgba(9, 15, 28, 0.92)', '#38bdf8', false);
+      }
+    }
     ctx.restore();
   }
 
@@ -767,7 +799,7 @@ function drawInfiltrator(ctx, state) {
   ctx.restore();
 
   if (hidden && state.detectionState !== 'BREACH') {
-    const lbl = p.inVeil ? 'VELVET VEIL' : p.inAlcove ? 'SHADOW ALCOVE' : 'UNSEEN';
+    const lbl = p.inVeil ? 'VELVET VEIL' : p.inDoused ? 'DEEP SHADOW' : p.inAlcove ? 'SHADOW ALCOVE' : 'UNSEEN · SHADOW';
     drawTag(ctx, p.x, p.y + 23, lbl, '#7dd3fc', 'rgba(10, 18, 32, 0.94)', '#38bdf8');
   }
 }

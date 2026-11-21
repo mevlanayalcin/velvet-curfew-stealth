@@ -1,4 +1,4 @@
-// Velvet Curfew v2b — Original Art-Deco Dossier HUD & Split 75/25 Heist Debrief Ledger
+// Velvet Curfew v3 — Live Objectives, 4 Stealth Gadgets, Per-Curator AI Telemetry & Debrief Ledger
 
 import { WINGS } from './levels.js';
 
@@ -28,6 +28,8 @@ const STATE_COPY = {
   SWEEPING: { cls: 'sweeping', label: 'SWEEPING', copy: 'Security sweeping the last shadow.' },
 };
 
+const ROMANS = ['I', 'II', 'III', 'IV', 'V'];
+
 export function syncHud(state) {
   const w = state.wing;
   const p = state.player;
@@ -42,7 +44,6 @@ export function syncHud(state) {
     ? `✦ Star Sapphire secured — board the Brass Elevator unseen`
     : w.objective;
 
-  // Toggle Split 75% Map / 25% Art-Deco Ledger in Debrief mode
   document.querySelector('.main-split').classList.toggle('debrief-mode', isDebrief);
   $('hud-live-view').classList.toggle('hidden', isDebrief);
   $('hud-debrief-view').classList.toggle('hidden', !isDebrief);
@@ -50,13 +51,14 @@ export function syncHud(state) {
 
   if (isDebrief) return;
 
+  // Detection State Banner
   const meta = STATE_COPY[state.detectionState] || STATE_COPY.UNSEEN;
   const badge = $('hud-state-badge');
   badge.textContent = meta.label;
   badge.className = `state-badge ${meta.cls}`;
   $('hud-state-copy').textContent = meta.copy;
 
-  // Curfew Bells (3 pips)
+  // Curfew Bells
   const pips = $('hud-bells').children;
   for (let i = 0; i < 3; i++) {
     pips[i].className = `bpip${i < state.bellCount ? (state.detectionState === 'BREACH' || state.bellCount >= 2 ? ' ring' : ' warn') : ''}`;
@@ -65,49 +67,83 @@ export function syncHud(state) {
   bw.textContent = state.bellCount === 0 ? 'HUSHED' : state.bellCount === 1 ? 'TOLLED' : state.bellCount === 2 ? 'HIGH' : 'LOCKED';
   bw.className = `bell-word ${state.bellCount >= 1 ? 'crimson' : ''}`;
 
-  // Exposure meter
-  const ew = $('hud-exp-word');
-  const ef = $('hud-exp-fill');
+  // Exposure & Noise Bars
+  const ew = $('hud-exp-word'), ef = $('hud-exp-fill');
   if (p.inVeil) {
     ew.textContent = 'VELVET VEIL'; ew.className = 'mval cyan';
+    ef.className = 'mfill exp-shadow'; ef.style.width = '10%';
+  } else if (p.inDoused) {
+    ew.textContent = 'DEEP SHADOW'; ew.className = 'mval cyan';
     ef.className = 'mfill exp-shadow'; ef.style.width = '10%';
   } else if (p.inLight) {
     ew.textContent = 'CHANDELIER'; ew.className = 'mval amber';
     ef.className = 'mfill exp-light'; ef.style.width = `${Math.round(Math.max(66, p.exposure * 100))}%`;
   } else {
-    ew.textContent = p.inAlcove ? 'SHADOW ALCOVE' : 'DIM VELVET'; ew.className = 'mval emerald';
-    ef.className = 'mfill exp-shadow'; ef.style.width = `${Math.round(Math.max(10, p.exposure * 100))}%`;
+    ew.textContent = p.inAlcove ? 'SHADOW ALCOVE' : 'DEEP SHADOW'; ew.className = 'mval emerald';
+    ef.className = 'mfill exp-shadow'; ef.style.width = `${Math.round(Math.max(12, p.exposure * 100))}%`;
   }
 
-  // Noise Ring meter
-  const nw = $('hud-noise-word');
-  const nf = $('hud-noise-fill');
+  const nw = $('hud-noise-word'), nf = $('hud-noise-fill');
   const loud = p.noise >= 48 || state.detectionState === 'BREACH';
   nw.textContent = loud ? 'ECHOING' : p.noise >= 24 ? 'SOFT STEP' : 'SILENT';
   nw.className = `mval ${loud ? 'crimson' : 'cyan'}`;
   nf.className = `mfill ${loud ? 'noise-loud' : 'noise-calm'}`;
   nf.style.width = `${Math.min(100, Math.max(8, Math.round(loud ? Math.max(82, p.noise) : p.noise)))}%`;
 
-  // Gadget slots
+  // Live Objectives Checklist
+  const relicsBonusDone = state.relicItems.filter((r) => r.taken).length;
+  const objR = $('obj-relics');
+  $('obj-relics-txt').textContent = `Loot relics (${state.relicsTaken}/${state.relicsTotal})`;
+  const relicsComplete = relicsBonusDone >= state.relicItems.length && state.relicItems.length > 0;
+  objR.className = `oc-row${relicsComplete || state.relicsTaken >= 2 ? ' done' : ''}`;
+  objR.querySelector('.oc-box').textContent = relicsComplete || state.relicsTaken >= 2 ? '✓' : '○';
+
+  const objS = $('obj-sapphire');
+  objS.className = `oc-row ${state.sapphireTaken ? 'done' : 'active'}`;
+  objS.querySelector('.oc-box').textContent = state.sapphireTaken ? '✓' : '▸';
+
+  const objE = $('obj-elevator');
+  objE.className = `oc-row ${state.sapphireTaken ? 'active' : ''}`;
+  objE.querySelector('.oc-box').textContent = state.sapphireTaken ? '▸' : '○';
+
+  // 4 Gadgets
   renderDots($('hud-coins'), state.coins, state.maxCoins);
   renderDots($('hud-veils'), state.veils, state.maxVeils);
+
+  const dEl = $('hud-douse');
+  if (p.lampInRange) {
+    dEl.textContent = 'IN RANGE';
+    dEl.className = 'stance-pill ready';
+  } else {
+    dEl.textContent = state.dousedCount > 0 ? `${state.dousedCount} DOUSED` : 'READY';
+    dEl.className = 'stance-pill on';
+  }
+
   const st = $('hud-stance');
   st.textContent = p.crouched ? 'CROUCHED' : 'UPRIGHT';
   st.className = `stance-pill${p.crouched ? ' on' : ' up'}`;
 
-  // Counters
-  $('hud-relics').textContent = `${state.relicsTaken} / ${state.relicsTotal}`;
-  const sap = $('hud-sapphire');
-  sap.textContent = state.sapphireTaken ? 'STOLEN' : 'SEALED';
-  sap.className = `mono ${state.sapphireTaken ? 'emerald' : 'cyan'}`;
-
-  const al = $('hud-alerts');
-  al.textContent = String(state.wingAlerts);
-  al.className = `mono ${state.wingAlerts === 0 ? 'emerald' : 'crimson'}`;
-
-  const el = $('hud-elevator');
-  el.textContent = state.sapphireTaken ? 'OPEN' : 'LOCKED';
-  el.className = `mono ${state.sapphireTaken ? 'emerald' : 'amber'}`;
+  // CURATORS · LIVE Per-Guard AI Telemetry & Suspicion Bars
+  const host = $('hud-curators-live');
+  const cards = [];
+  state.guards.slice(0, 4).forEach((g, idx) => {
+    const role = g.type === 'inspector' ? 'INSPECTOR' : g.type === 'docent' ? 'DOCENT' : 'CURATOR';
+    const stKey = g.state === 'BREACH' ? 'breach' : g.state === 'SWEEPING' ? 'sweeping' : g.state === 'CURIOUS' ? 'curious' : 'patrol';
+    const stLabel = g.state === 'BREACH' ? 'BREACH !' : g.state === 'SWEEPING' ? 'SWEEPING' : g.state === 'CURIOUS' ? 'CURIOUS ?' : 'PATROL';
+    const pct = g.state === 'BREACH' ? 100 : g.state === 'SWEEPING' ? Math.max(58, Math.round(g.suspicion * 100)) : g.state === 'CURIOUS' ? Math.max(52, Math.round(g.suspicion * 100)) : 12;
+    cards.push(`<div class="cur-card ${stKey}">
+      <div class="cur-top"><span class="cur-name">${role} ${ROMANS[idx] || idx + 1}</span><span class="cur-st ${stKey}">${stLabel}</span></div>
+      <div class="cur-bar"><div class="cur-fill ${stKey}" style="width:${pct}%"></div></div>
+    </div>`);
+  });
+  if (state.cameras.length > 0 && cards.length < 4) {
+    const camAlert = state.cameras.some((c) => c.alerting);
+    cards.push(`<div class="cur-card${camAlert ? ' breach' : ''}">
+      <div class="cur-top"><span class="cur-name">BRASS-EYE DOME</span><span class="cur-st ${camAlert ? 'breach' : 'eye'}">${camAlert ? 'LOCKED !' : 'SWEEPING'}</span></div>
+      <div class="cur-bar"><div class="cur-fill ${camAlert ? 'breach' : 'eye'}" style="width:${camAlert ? 100 : 48}%"></div></div>
+    </div>`);
+  }
+  host.innerHTML = cards.join('');
 }
 
 function renderDots(el, cur, max) {
@@ -149,6 +185,7 @@ export function renderDebriefLedger(state, onSelectWing) {
   $('deb-time').textContent = formatTime(state.time);
   $('deb-alerts').textContent = String(state.wingAlerts);
   $('deb-alerts').className = `mono ${ghost ? 'emerald' : 'crimson'}`;
+  $('deb-doused').textContent = String(state.dousedCount);
   $('deb-coins').textContent = String(state.coinsUsed);
   $('deb-relics').textContent = `${state.relicsTaken} / ${state.relicsTotal}`;
   $('deb-bonus').textContent = `+${state.ghostBonus.toLocaleString('en-US')}`;
