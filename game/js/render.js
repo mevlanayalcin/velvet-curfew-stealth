@@ -1,8 +1,96 @@
-// Velvet Curfew v2b — 100% Original 1920s Art-Deco Grand Museum Renderer (820x576)
+// Velvet Curfew — Art-Deco 2.5D Museum Renderer, Dynamic Lamp Pools, Raycast Cones & Footstep Sonar
 
 import { STAGE_H, STAGE_W } from './levels.js';
 
 const floorCache = new Map();
+
+export function renderMuseumStage(ctx, state, nowSec) {
+  const w = state.wing;
+  ctx.clearRect(0, 0, STAGE_W, STAGE_H);
+  ctx.drawImage(getMuseumFloor(w), 0, 0);
+  for (const a of w.alcoves || []) drawShadowAlcove(ctx, a);
+  drawDynamicLampPools(ctx, state, nowSec);
+  drawBrassVents(ctx, w.vents || [], state);
+  for (const ar of w.arches || []) drawArtDecoArch(ctx, ar);
+  for (const o of w.obstacles) if (o.kind === 'settee') drawVelvetSettee(ctx, o);
+  drawRaycastCones(ctx, state);
+  for (const tw of state.tripwires) drawTripwire(ctx, tw, nowSec);
+  for (const o of w.obstacles) if (o.kind !== 'settee') drawTallMuseumProp(ctx, o);
+  drawSconceFixtures(ctx, state);
+  drawSapphireAndRelics(ctx, state, nowSec);
+  drawBrassElevator(ctx, state, nowSec);
+  for (const sm of state.veilsActive) drawVelvetVeil(ctx, sm, nowSec);
+  drawTacticalOverlays(ctx, state, nowSec);
+  if (state.mode === 'debrief' && state.debriefTrail) drawGoldenTrail(ctx, state.debriefTrail);
+  if (state.mode === 'play' && !state.shotMode && state.aim.active && state.coins > 0) drawAimArc(ctx, state);
+  for (const c of state.coinsInFlight) {
+    const u = Math.min(1, c.t / c.dur);
+    const x = c.sx + (c.tx - c.sx) * u, y = c.sy + (c.ty - c.sy) * u - Math.sin(u * Math.PI) * 34;
+    ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(x, y, 4.4, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#92400e'; ctx.lineWidth = 1; ctx.stroke();
+  }
+  for (const cam of state.cameras) drawCameraDome(ctx, cam);
+  drawGuardFootstepSonar(ctx, state.guardSteps || []);
+  if (state.mode !== 'debrief') drawInfiltrator(ctx, state);
+  for (const g of state.guards) drawGuard(ctx, g);
+  for (const pt of state.particles) {
+    ctx.globalAlpha = Math.max(0, pt.life / pt.maxLife);
+    ctx.fillStyle = pt.color; ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+export function drawDynamicLampPools(ctx, state, nowSec) {
+  for (const l of state.lights) {
+    if (l.lit) {
+      const rad = l.r * (1 + Math.sin(nowSec * 1.7 + l.x * 0.02) * 0.015);
+      const gr = ctx.createRadialGradient(l.x, l.y, 4, l.x, l.y, rad);
+      gr.addColorStop(0, 'rgba(255, 224, 132, 0.50)');
+      gr.addColorStop(0.36, 'rgba(228, 176, 78, 0.28)');
+      gr.addColorStop(0.72, 'rgba(186, 130, 44, 0.09)');
+      gr.addColorStop(1, 'rgba(9, 13, 22, 0)');
+      ctx.fillStyle = gr;
+      ctx.beginPath(); ctx.arc(l.x, l.y, rad, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(244, 212, 130, 0.16)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(l.x, l.y, rad * 0.68, 0, Math.PI * 2); ctx.stroke();
+    } else {
+      const rad = l.r * 0.64;
+      const dg = ctx.createRadialGradient(l.x, l.y, 4, l.x, l.y, rad);
+      dg.addColorStop(0, 'rgba(2, 5, 13, 0.86)');
+      dg.addColorStop(0.68, 'rgba(5, 10, 22, 0.58)');
+      dg.addColorStop(1, 'rgba(5, 10, 22, 0)');
+      ctx.fillStyle = dg;
+      ctx.beginPath(); ctx.arc(l.x, l.y, rad, 0, Math.PI * 2); ctx.fill();
+      ctx.save();
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.48)';
+      ctx.setLineDash([5, 5]); ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(l.x, l.y, rad * 0.82, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
+
+export function drawGuardFootstepSonar(ctx, steps) {
+  if (!steps.length) return;
+  ctx.save();
+  for (const s of steps) {
+    const col = s.danger ? `rgba(255, 209, 92, ${s.alpha})` : `rgba(226, 232, 240, ${s.alpha})`;
+    ctx.strokeStyle = col; ctx.lineWidth = 1.8; ctx.setLineDash([6, 4]);
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(s.x, s.y, Math.max(4, s.r * 0.56), 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+    if (s.label) {
+      drawTag(ctx, s.x, s.y + s.r + 10, s.label, s.danger ? '#fef08a' : '#e2e8f0', 'rgba(10, 14, 24, 0.9)', s.danger ? '#f59e0b' : '#94a3b8');
+    }
+  }
+  ctx.restore();
+}
+
+export function drawRaycastCones(ctx, state) {
+  for (const cam of state.cameras) drawCameraCone(ctx, cam);
+  for (const g of state.guards) drawGuardCone(ctx, g);
+}
 
 // Pre-render diagonal chevron marble parquet, crimson velvet runners with brass filigree & octagonal rotunda medallion
 function getMuseumFloor(wing) {
@@ -105,72 +193,7 @@ function getMuseumFloor(wing) {
   return off;
 }
 
-export function renderStage(ctx, state, nowSec) {
-  const w = state.wing;
-  ctx.clearRect(0, 0, STAGE_W, STAGE_H);
-
-  // 1. Cached Art-Deco Chevron Marble & Crimson Velvet Floor
-  ctx.drawImage(getMuseumFloor(w), 0, 0);
-
-  // 2. Velvet Stanchion Rope Shadow Alcoves (deep twilight cover pockets)
-  for (const a of w.alcoves || []) drawShadowAlcove(ctx, a);
-
-  // 3. DRAMATIC "Lighting That Shows What Is Safe": Huge Warm Golden Pools vs Deep Indigo Doused Sanctuaries!
-  for (const l of state.lights) {
-    if (l.lit) {
-      const rad = l.r * (1 + Math.sin(nowSec * 1.7 + l.x * 0.02) * 0.015);
-      const gr = ctx.createRadialGradient(l.x, l.y, 4, l.x, l.y, rad);
-      gr.addColorStop(0, 'rgba(255, 224, 132, 0.50)');
-      gr.addColorStop(0.36, 'rgba(228, 176, 78, 0.28)');
-      gr.addColorStop(0.72, 'rgba(186, 130, 44, 0.09)');
-      gr.addColorStop(1, 'rgba(9, 13, 22, 0)');
-      ctx.fillStyle = gr;
-      ctx.beginPath(); ctx.arc(l.x, l.y, rad, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'rgba(244, 212, 130, 0.16)';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.arc(l.x, l.y, rad * 0.68, 0, Math.PI * 2); ctx.stroke();
-    } else {
-      // Freshly doused lamp plunges a full 150px zone into deep safe shadow!
-      const rad = l.r * 0.64;
-      const dg = ctx.createRadialGradient(l.x, l.y, 4, l.x, l.y, rad);
-      dg.addColorStop(0, 'rgba(2, 5, 13, 0.86)');
-      dg.addColorStop(0.68, 'rgba(5, 10, 22, 0.58)');
-      dg.addColorStop(1, 'rgba(5, 10, 22, 0)');
-      ctx.fillStyle = dg;
-      ctx.beginPath(); ctx.arc(l.x, l.y, rad, 0, Math.PI * 2); ctx.fill();
-      ctx.save();
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.48)';
-      ctx.setLineDash([5, 5]);
-      ctx.lineWidth = 1.4;
-      ctx.beginPath(); ctx.arc(l.x, l.y, rad * 0.82, 0, Math.PI * 2); ctx.stroke();
-      ctx.restore();
-    }
-  }
-
-  // 3b. Linked Art-Deco Brass Floor Grates / Service Vents ([V] VENT)
-  drawBrassVents(ctx, w.vents || [], state);
-
-  // 4. Curved Art-Deco Archway Doorways
-  for (const ar of w.arches || []) drawArtDecoArch(ctx, ar);
-
-  // 5. Low Cover: Tufted Crimson Velvet Gallery Settees (drawn beneath sight cones)
-  for (const o of w.obstacles) {
-    if (o.kind === 'settee') drawVelvetSettee(ctx, o);
-  }
-
-  // 6. Raycast Vision Cones (Brass-Eye Teal Domes + Curator Amber / Breach Crimson / Sweeping Violet-Amber)
-  for (const cam of state.cameras) drawCameraCone(ctx, cam);
-  for (const g of state.guards) drawGuardCone(ctx, g);
-
-  // 7. Pulsing Crimson Laser Tripwires
-  for (const tw of state.tripwires) drawTripwire(ctx, tw, nowSec);
-
-  // 8. Tall Sight-Blocking Architecture: Stepped Brass Walls, Octagonal Marble Columns, Glass Vitrines & Bronze Folding Screens
-  for (const o of w.obstacles) {
-    if (o.kind !== 'settee') drawTallMuseumProp(ctx, o);
-  }
-
-  // 9. Art-Deco Ceiling Chandelier / Brass Sconce Fixtures (Lit vs Doused w/ indigo smoke wisps)
+function drawSconceFixtures(ctx, state) {
   for (const l of state.lights) {
     ctx.save();
     ctx.translate(l.x, l.y);
@@ -181,14 +204,11 @@ export function renderStage(ctx, state, nowSec) {
       ctx.fillStyle = '#fef3c7';
       ctx.beginPath(); ctx.arc(0, 0, 3.3, 0, Math.PI * 2); ctx.fill();
     } else {
-      // Extinguished dark brass sconce with delicate indigo smoke wisps & DOUSED tag
       ctx.fillStyle = '#0f1420';
       ctx.beginPath(); ctx.arc(0, 0, 6.4, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = '#64748b'; ctx.lineWidth = 1.3; ctx.stroke();
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.55)';
-      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.55)'; ctx.lineWidth = 1.2;
       ctx.beginPath(); ctx.moveTo(-3, -3); ctx.lineTo(3, 3); ctx.moveTo(3, -3); ctx.lineTo(-3, 3); ctx.stroke();
-      // Subtle curling smoke wisps
       ctx.strokeStyle = 'rgba(148, 163, 184, 0.42)';
       ctx.beginPath(); ctx.arc(5, -7, 4, 0.4, Math.PI * 1.4); ctx.stroke();
       ctx.beginPath(); ctx.arc(-4, -10, 3, 1.0, Math.PI * 1.9); ctx.stroke();
@@ -198,50 +218,6 @@ export function renderStage(ctx, state, nowSec) {
     }
     ctx.restore();
   }
-
-  // 10. Star Sapphire Vitrine, Museum Relics & Brass Art-Deco Elevator Exit
-  drawSapphireAndRelics(ctx, state, nowSec);
-  drawBrassElevator(ctx, state, nowSec);
-
-  // 11. Velvet Smoke Veil Clouds (violet-silver drifting mist)
-  for (const sm of state.veilsActive) drawVelvetVeil(ctx, sm, nowSec);
-
-  // 12. Diegetic Tactile Callouts (Coin Arc + CLINK!, Curfew Bell waves, Last Glimpse ghost silhouette)
-  drawTacticalOverlays(ctx, state, nowSec);
-
-  // 13. Debrief Golden Infiltration Trail (when in debrief mode / 4-debrief.jpg!)
-  if (state.mode === 'debrief' && state.debriefTrail) {
-    drawGoldenTrail(ctx, state.debriefTrail);
-  }
-
-  // Aim preview arc in live play
-  if (state.mode === 'play' && !state.shotMode && state.aim.active && state.coins > 0) {
-    drawAimArc(ctx, state);
-  }
-
-  // 14. Flying Brass Coins
-  for (const c of state.coinsInFlight) {
-    const u = Math.min(1, c.t / c.dur);
-    const x = c.sx + (c.tx - c.sx) * u;
-    const y = c.sy + (c.ty - c.sy) * u - Math.sin(u * Math.PI) * 34;
-    ctx.fillStyle = '#fde68a';
-    ctx.beginPath(); ctx.arc(x, y, 4.4, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#92400e'; ctx.lineWidth = 1; ctx.stroke();
-  }
-
-  // 15. Brass-Eye Domes, Infiltrator, Museum Guards & Through-Wall Guard Footstep Sonar Rings!
-  for (const cam of state.cameras) drawCameraDome(ctx, cam);
-  drawGuardFootsteps(ctx, state.guardSteps || []);
-  if (state.mode !== 'debrief') drawInfiltrator(ctx, state);
-  for (const g of state.guards) drawGuard(ctx, g);
-
-  // 16. Sparkle Particles
-  for (const pt of state.particles) {
-    ctx.globalAlpha = Math.max(0, pt.life / pt.maxLife);
-    ctx.fillStyle = pt.color;
-    ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2); ctx.fill();
-  }
-  ctx.globalAlpha = 1;
 }
 
 function drawShadowAlcove(ctx, a) {
@@ -536,25 +512,6 @@ function drawBrassVents(ctx, vents, state) {
       drawTag(ctx, 0, 19, 'VENT [V]', '#5eead4', 'rgba(9, 20, 28, 0.92)', '#2dd4bf', false);
     }
     ctx.restore();
-  }
-  ctx.restore();
-}
-
-function drawGuardFootsteps(ctx, steps) {
-  if (!steps.length) return;
-  ctx.save();
-  for (const s of steps) {
-    // Expanding acoustic footstep sonar arcs visible EVEN THROUGH WALLS to telegraph guard proximity!
-    const col = s.danger ? `rgba(255, 209, 92, ${s.alpha})` : `rgba(226, 232, 240, ${s.alpha})`;
-    ctx.strokeStyle = col;
-    ctx.lineWidth = 1.8;
-    ctx.setLineDash([6, 4]);
-    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.stroke();
-    ctx.beginPath(); ctx.arc(s.x, s.y, Math.max(4, s.r * 0.56), 0, Math.PI * 2); ctx.stroke();
-    ctx.setLineDash([]);
-    if (s.label) {
-      drawTag(ctx, s.x, s.y + s.r + 10, s.label, s.danger ? '#fef08a' : '#e2e8f0', 'rgba(10, 14, 24, 0.9)', s.danger ? '#f59e0b' : '#94a3b8');
-    }
   }
   ctx.restore();
 }

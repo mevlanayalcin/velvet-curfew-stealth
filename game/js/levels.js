@@ -1,10 +1,16 @@
-// Velvet Curfew v2b — 5 100% Original 1920s Art-Deco Grand Museum Wings (820x576)
-// Architectural Props: stepped brass walls ('wall'), octagonal ivory-marble columns ('column'),
-// gilded mahogany & glass display vitrines ('vitrine'), ornate bronze Art-Deco folding screens ('screen'),
-// tufted crimson velvet gallery settees ('settee' — low crouch-hide cover), and stanchion shadow alcoves ('alcove').
+// Velvet Curfew — 5 Handcrafted Art-Deco Grand Museum Wings, Guard Archetypes & Stealth Perks
 
 export const STAGE_W = 820;
 export const STAGE_H = 576;
+
+export const STEALTH_PERKS = [
+  { id: 'felt-soles', name: 'Felt Soles', tag: 'ACOUSTIC', desc: '-45% marble footstep noise & +15% crouch speed.', apply: (m) => { m.noiseMult *= 0.55; m.crouchSpeedMult *= 1.15; } },
+  { id: 'brass-resonator', name: 'Brass Resonator', tag: 'LURE', desc: '+2 Coin Lures, +35% ripple reach & longer curiosity.', apply: (m) => { m.bonusCoins += 2; m.lureRadiusMult *= 1.35; m.lureHoldBonus += 2.0; } },
+  { id: 'velvet-cowl', name: 'Velvet Cowl', tag: 'SHADOW', desc: 'Alcove concealment lingers 1.5s & +1 Velvet Veil.', apply: (m) => { m.shadowLinger += 1.5; m.bonusVeils += 1; } },
+  { id: 'iris-incense', name: 'Iris Incense', tag: 'VEIL', desc: '+30% Velvet Smoke Veil radius & +3s duration.', apply: (m) => { m.smokeRadiusMult *= 1.3; m.smokeDurationBonus += 3.0; } },
+  { id: 'skeleton-key', name: 'Skeleton Key', tag: 'HEIST', desc: 'Wider relic reach & +25% Ghost Bonus multiplier.', apply: (m) => { m.lootRangeBonus += 16; m.scoreMult *= 1.25; } },
+  { id: 'silk-gloves', name: 'Silk Gloves', tag: 'AGILITY', desc: '+18% coin toss arc & +12% velvet glide speed.', apply: (m) => { m.throwRangeMult *= 1.18; m.speedMult *= 1.12; } },
+];
 
 export const GUARD_TYPES = {
   curator: {
@@ -24,15 +30,6 @@ export const GUARD_TYPES = {
   },
 };
 
-export const PERKS = [
-  { id: 'felt-soles', name: 'Felt Soles', tag: 'ACOUSTIC', desc: '-45% marble footstep noise & +15% crouch speed.', apply: (m) => { m.noiseMult *= 0.55; m.crouchSpeedMult *= 1.15; } },
-  { id: 'brass-resonator', name: 'Brass Resonator', tag: 'LURE', desc: '+2 Coin Lures, +35% ripple reach & longer curiosity.', apply: (m) => { m.bonusCoins += 2; m.lureRadiusMult *= 1.35; m.lureHoldBonus += 2.0; } },
-  { id: 'velvet-cowl', name: 'Velvet Cowl', tag: 'SHADOW', desc: 'Alcove concealment lingers 1.5s & +1 Velvet Veil.', apply: (m) => { m.shadowLinger += 1.5; m.bonusVeils += 1; } },
-  { id: 'iris-incense', name: 'Iris Incense', tag: 'VEIL', desc: '+30% Velvet Smoke Veil radius & +3s duration.', apply: (m) => { m.smokeRadiusMult *= 1.3; m.smokeDurationBonus += 3.0; } },
-  { id: 'skeleton-key', name: 'Skeleton Key', tag: 'HEIST', desc: 'Wider relic reach & +25% Ghost Bonus multiplier.', apply: (m) => { m.lootRangeBonus += 16; m.scoreMult *= 1.25; } },
-  { id: 'silk-gloves', name: 'Silk Gloves', tag: 'AGILITY', desc: '+18% coin toss arc & +12% velvet glide speed.', apply: (m) => { m.throwRangeMult *= 1.18; m.speedMult *= 1.12; } },
-];
-
 function perimeter() {
   return [
     { x: 0, y: 0, w: STAGE_W, h: 16, kind: 'wall' },
@@ -42,7 +39,7 @@ function perimeter() {
   ];
 }
 
-export const WINGS = [
+export const MUSEUM_WINGS = [
   // WING I: GRAND ROTUNDA (Hero Cover 01-rotunda.jpg + Debrief Trail 04-debrief.jpg!)
   {
     id: 0, roman: 'I', title: 'GRAND ROTUNDA', par: 95,

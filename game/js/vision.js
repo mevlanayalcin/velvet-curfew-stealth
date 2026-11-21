@@ -1,72 +1,8 @@
-// Velvet Curfew v2b — True 2D Raycast Visibility Engine (Columns, Vitrines, Screens, Velvet Veil)
+// Velvet Curfew — True 2D Raycast Visibility Polygon & Sightline Occlusion Engine
 
 const EPS = 0.0008;
 
-export function normalizeAngle(a) {
-  while (a > Math.PI) a -= Math.PI * 2;
-  while (a < -Math.PI) a += Math.PI * 2;
-  return a;
-}
-
-export function angleDiff(a, b) {
-  return normalizeAngle(a - b);
-}
-
-// Tall sight blockers: walls, fluted columns, mahogany vitrines, and bronze folding screens.
-// Tufted velvet settees ('settee') are low crouch-hide cover that cones sweep over!
-export function buildSegments(obstacles) {
-  const segs = [];
-  const corners = [];
-  for (const r of obstacles) {
-    if (r.kind === 'settee') continue;
-    const x1 = r.x, y1 = r.y, x2 = r.x + r.w, y2 = r.y + r.h;
-    segs.push([x1, y1, x2, y1], [x2, y1, x2, y2], [x2, y2, x1, y2], [x1, y2, x1, y1]);
-    corners.push([x1, y1], [x2, y1], [x2, y2], [x1, y2]);
-  }
-  return { segs, corners };
-}
-
-function raySegT(ox, oy, dx, dy, ax, ay, bx, by) {
-  const sx = bx - ax, sy = by - ay;
-  const denom = dx * sy - dy * sx;
-  if (Math.abs(denom) < 1e-8) return Infinity;
-  const qx = ax - ox, qy = ay - oy;
-  const t = (qx * sy - qy * sx) / denom;
-  if (t < 0) return Infinity;
-  const u = (qx * dy - qy * dx) / denom;
-  if (u < -1e-5 || u > 1 + 1e-5) return Infinity;
-  return t;
-}
-
-function rayCircleT(ox, oy, dx, dy, cx, cy, r) {
-  const fx = ox - cx, fy = oy - cy;
-  const b = 2 * (fx * dx + fy * dy);
-  const c = fx * fx + fy * fy - r * r;
-  if (c <= 0) return 6;
-  const disc = b * b - 4 * c;
-  if (disc < 0) return Infinity;
-  const t = (-b - Math.sqrt(disc)) * 0.5;
-  return t >= 0 ? t : Infinity;
-}
-
-export function castRay(ox, oy, angle, maxDist, segs, veils = []) {
-  const dx = Math.cos(angle), dy = Math.sin(angle);
-  let best = maxDist;
-  for (let i = 0; i < segs.length; i++) {
-    const s = segs[i];
-    const t = raySegT(ox, oy, dx, dy, s[0], s[1], s[2], s[3]);
-    if (t < best) best = t;
-  }
-  for (let i = 0; i < veils.length; i++) {
-    const sm = veils[i];
-    if (sm.alpha < 0.2) continue;
-    const t = rayCircleT(ox, oy, dx, dy, sm.x, sm.y, sm.r * 0.88);
-    if (t < best) best = t;
-  }
-  return { x: ox + dx * best, y: oy + dy * best, dist: best };
-}
-
-export function computeVisionPolygon(ox, oy, facing, fov, range, geom, veils = []) {
+export function computeRaycastVisionCone(ox, oy, facing, fov, range, geom, veils = []) {
   const half = fov * 0.5;
   const angles = [];
   for (let i = 0; i <= 18; i++) angles.push(-half + (fov * i) / 18);
@@ -109,6 +45,76 @@ export function computeVisionPolygon(ox, oy, facing, fov, range, geom, veils = [
     pts.push({ x: hit.x, y: hit.y });
   }
   return pts;
+}
+
+export function buildOccluderSegments(obstacles) {
+  const segs = [];
+  const corners = [];
+  for (const r of obstacles) {
+    if (r.kind === 'settee') continue;
+    const x1 = r.x, y1 = r.y, x2 = r.x + r.w, y2 = r.y + r.h;
+    segs.push([x1, y1, x2, y1], [x2, y1, x2, y2], [x2, y2, x1, y2], [x1, y2, x1, y1]);
+    corners.push([x1, y1], [x2, y1], [x2, y2], [x1, y2]);
+  }
+  return { segs, corners };
+}
+
+export function isPointInVisionCone(ox, oy, facing, fov, range, tx, ty, geom, veils = []) {
+  const dx = tx - ox, dy = ty - oy;
+  const dist = Math.hypot(dx, dy);
+  if (dist > range) return false;
+  if (Math.abs(angleDiff(Math.atan2(dy, dx), facing)) > fov * 0.5) return false;
+  return hasLineOfSight(ox, oy, tx, ty, geom, veils);
+}
+
+export function normalizeAngle(a) {
+  while (a > Math.PI) a -= Math.PI * 2;
+  while (a < -Math.PI) a += Math.PI * 2;
+  return a;
+}
+
+export function angleDiff(a, b) {
+  return normalizeAngle(a - b);
+}
+
+function raySegT(ox, oy, dx, dy, ax, ay, bx, by) {
+  const sx = bx - ax, sy = by - ay;
+  const denom = dx * sy - dy * sx;
+  if (Math.abs(denom) < 1e-8) return Infinity;
+  const qx = ax - ox, qy = ay - oy;
+  const t = (qx * sy - qy * sx) / denom;
+  if (t < 0) return Infinity;
+  const u = (qx * dy - qy * dx) / denom;
+  if (u < -1e-5 || u > 1 + 1e-5) return Infinity;
+  return t;
+}
+
+function rayCircleT(ox, oy, dx, dy, cx, cy, r) {
+  const fx = ox - cx, fy = oy - cy;
+  const b = 2 * (fx * dx + fy * dy);
+  const c = fx * fx + fy * fy - r * r;
+  if (c <= 0) return 6;
+  const disc = b * b - 4 * c;
+  if (disc < 0) return Infinity;
+  const t = (-b - Math.sqrt(disc)) * 0.5;
+  return t >= 0 ? t : Infinity;
+}
+
+export function castRay(ox, oy, angle, maxDist, segs, veils = []) {
+  const dx = Math.cos(angle), dy = Math.sin(angle);
+  let best = maxDist;
+  for (let i = 0; i < segs.length; i++) {
+    const s = segs[i];
+    const t = raySegT(ox, oy, dx, dy, s[0], s[1], s[2], s[3]);
+    if (t < best) best = t;
+  }
+  for (let i = 0; i < veils.length; i++) {
+    const sm = veils[i];
+    if (sm.alpha < 0.2) continue;
+    const t = rayCircleT(ox, oy, dx, dy, sm.x, sm.y, sm.r * 0.88);
+    if (t < best) best = t;
+  }
+  return { x: ox + dx * best, y: oy + dy * best, dist: best };
 }
 
 export function hasLineOfSight(ox, oy, tx, ty, geom, veils = []) {
