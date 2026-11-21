@@ -1,4 +1,4 @@
-// Velvet Curfew — Dynamic Art-Deco HUD Mount, Per-Curator AI Telemetry & Split Debrief Ledger
+// Velvet Curfew — Dynamic Art-Deco HUD Mount, 6-Row Icon Legend, Live Telemetry & Debrief Ledger
 
 import { MUSEUM_WINGS } from './levels.js';
 
@@ -17,7 +17,7 @@ export function mountArtDecoHud(handlers) {
       <span data-ui="wing-roman" class="roman-seal">I</span>
       <span data-ui="wing-name" class="wing-title">GRAND ROTUNDA</span>
       <span class="brass-pip">◆</span>
-      <span data-ui="objective" class="top-objective">Steal the Star Sapphire, then board the Brass Elevator unseen</span>
+      <span data-ui="objective" class="top-objective">Steal The Solis Opal, then board the Brass Elevator unseen</span>
     </div>
     <div class="top-right">
       <span class="top-metric"><em class="mk">WING</em> <strong data-ui="gallery" class="mono">I/V</strong></span>
@@ -36,11 +36,11 @@ export function mountArtDecoHud(handlers) {
       <div class="deco-modal title-modal">
         <div class="deco-rule"><span>✦ GRAND MERIDIAN MUSEUM · 1928 ✦</span></div>
         <h1 class="hero-logo">VELVET CURFEW</h1>
-        <p class="hero-desc">Stick to deep midnight shadow, read curator footsteps through walls, douse brass sconces, slip through subfloor vents, and vanish with the Star Sapphire.</p>
+        <p class="hero-desc">Stick to deep midnight shadow, read curator footsteps through walls, douse brass sconces, slip through subfloor vents, and vanish with The Solis Opal.</p>
         <div class="tri-steps">
-          <div class="step-box"><b>I · SHADOW</b><span>Douse sconces [R] &amp; slip through Brass Vents [V].</span></div>
+          <div class="step-box"><b>I · SHADOW</b><span>Douse sconces [R] &amp; crouch behind velvet sofas.</span></div>
           <div class="step-box"><b>II · MISDIRECT</b><span>Toss Coins [Q] or pop Velvet Veil [E] to sever sightlines.</span></div>
-          <div class="step-box"><b>III · EXTRACT</b><span>Lift the Star Sapphire &amp; board the Brass Elevator.</span></div>
+          <div class="step-box"><b>III · EXTRACT</b><span>Lift The Solis Opal &amp; board the Brass Elevator.</span></div>
         </div>
         <div data-ui="title-wing-list" class="wing-pills"></div>
         <div class="btn-row"><button data-ui="btn-start" class="btn-brass">ENTER GALLERY [SPACE]</button></div>
@@ -99,26 +99,33 @@ export function mountArtDecoHud(handlers) {
         <div class="sec-h">OBJECTIVES</div>
         <ul class="obj-check-list">
           <li data-ui="obj-relics" class="oc-row"><span class="oc-box">○</span><span data-ui="obj-relics-txt">Relics (2/4)</span></li>
-          <li data-ui="obj-sapphire" class="oc-row active"><span class="oc-box">▸</span><span>Star Sapphire</span></li>
+          <li data-ui="obj-opal" class="oc-row active"><span class="oc-box">▸</span><span>The Solis Opal</span></li>
           <li data-ui="obj-elevator" class="oc-row"><span class="oc-box">○</span><span>Brass Elevator</span></li>
         </ul>
       </div>
       <div class="hud-sec">
         <div class="sec-h">GADGETS</div>
         <div class="gadget-grid">
-          <div class="gbox"><span class="gbox-k"><kbd>Q</kbd> COIN</span><strong data-ui="coins-val" class="gbox-v gold mono">×3</strong></div>
-          <div class="gbox"><span class="gbox-k"><kbd>E</kbd> VEIL</span><strong data-ui="veils-val" class="gbox-v violet mono">×2</strong></div>
-          <div class="gbox" data-ui="gbox-douse"><span class="gbox-k"><kbd>R</kbd> DOUSE</span><strong data-ui="douse-val" class="gbox-v cyan mono">1 OFF</strong></div>
-          <div class="gbox" data-ui="gbox-vent"><span class="gbox-k"><kbd>V</kbd> VENT</span><strong data-ui="vent-val" class="gbox-v emerald mono">LINKED</strong></div>
+          <div class="gbox"><span class="gbox-k"><kbd>Q</kbd>COIN</span><strong data-ui="coins-val" class="gbox-v gold mono">×3</strong></div>
+          <div class="gbox"><span class="gbox-k"><kbd>E</kbd>VEIL</span><strong data-ui="veils-val" class="gbox-v violet mono">×2</strong></div>
+          <div class="gbox" data-ui="gbox-douse"><span class="gbox-k"><kbd>R</kbd>DOUSE</span><strong data-ui="douse-val" class="gbox-v cyan mono">1 OFF</strong></div>
+          <div class="gbox" data-ui="gbox-vent"><span class="gbox-k"><kbd>V</kbd>VENT</span><strong data-ui="vent-val" class="gbox-v emerald mono">LINKED</strong></div>
         </div>
       </div>
-      <div class="hud-sec curators-sec">
+      <div class="hud-sec">
         <div class="sec-h">CURATORS · LIVE</div>
         <div data-ui="curators-live" class="curator-list"></div>
       </div>
-      <div class="protocol-micro">
-        <span class="pm-win">WIN: Sapphire → Elevator</span>
-        <span class="pm-lose">LOSE: 3 Bells / Caught</span>
+      <div class="hud-sec legend-sec">
+        <div class="sec-h">LEGEND</div>
+        <ul class="legend-list">
+          <li><span class="li-ico li-cur"></span><span>Curator + vision cone</span></li>
+          <li><span class="li-ico li-sofa"></span><span>Velvet sofa: crouch to hide</span></li>
+          <li><span class="li-ico li-pillar"></span><span>Marble pillar: blocks sight</span></li>
+          <li><span class="li-ico li-lamp"></span><span>Brass lamp: lit=seen / [R] douse</span></li>
+          <li><span class="li-ico li-sec"></span><span>Security eye / laser tripwire</span></li>
+          <li><span class="li-ico li-elev"></span><span>Elevator: unlocks with Opal</span></li>
+        </ul>
       </div>
     </div>
     <div data-ui="hud-debrief" class="hud-view debrief-view hidden">
@@ -151,7 +158,7 @@ export function mountArtDecoHud(handlers) {
 
   document.getElementById('controls').innerHTML = `
     <span><kbd>WASD</kbd> Move</span><span class="bsep">·</span>
-    <span><kbd>SHIFT</kbd> Crouch</span><span class="bsep">·</span>
+    <span><kbd>SHIFT</kbd> Crouch in Cover</span><span class="bsep">·</span>
     <span><kbd>Q</kbd>/<kbd>LMB</kbd> Coin Lure</span><span class="bsep">·</span>
     <span><kbd>E</kbd> Velvet Veil</span><span class="bsep">·</span>
     <span><kbd>R</kbd> Douse Lamp</span><span class="bsep">·</span>
@@ -177,7 +184,7 @@ export function updateCuratorTelemetry(state) {
   ui('gallery').textContent = `${w.roman}/V`;
   ui('timer').textContent = formatTime(state.time);
   ui('score').textContent = state.score.toLocaleString('en-US');
-  ui('objective').textContent = state.sapphireTaken ? '✦ Star Sapphire taken — board the Brass Elevator unseen' : w.objective;
+  ui('objective').textContent = state.opalTaken ? '✦ The Solis Opal taken — board the Brass Elevator unseen' : w.objective;
 
   document.querySelector('.main-split').classList.toggle('debrief-mode', isDebrief);
   ui('hud-live').classList.toggle('hidden', isDebrief);
@@ -217,19 +224,19 @@ export function updateCuratorTelemetry(state) {
   objR.className = `oc-row${state.relicsTaken >= 2 ? ' done' : ''}`;
   objR.querySelector('.oc-box').textContent = state.relicsTaken >= 2 ? '✓' : '○';
 
-  const objS = ui('obj-sapphire');
-  objS.className = `oc-row ${state.sapphireTaken ? 'done' : 'active'}`;
-  objS.querySelector('.oc-box').textContent = state.sapphireTaken ? '✓' : '▸';
+  const objO = ui('obj-opal');
+  objO.className = `oc-row ${state.opalTaken ? 'done' : 'active'}`;
+  objO.querySelector('.oc-box').textContent = state.opalTaken ? '✓' : '▸';
 
   const objE = ui('obj-elevator');
-  objE.className = `oc-row ${state.sapphireTaken ? 'active' : ''}`;
-  objE.querySelector('.oc-box').textContent = state.sapphireTaken ? '▸' : '○';
+  objE.className = `oc-row ${state.opalTaken ? 'active' : ''}`;
+  objE.querySelector('.oc-box').textContent = state.opalTaken ? '▸' : '○';
 
   ui('coins-val').textContent = `×${state.coins}`;
   ui('veils-val').textContent = `×${state.veils}`;
-  ui('douse-val').textContent = p.lampInRange ? 'READY!' : `${state.dousedCount} OFF`;
+  ui('douse-val').textContent = p.lampInRange ? 'READY' : `${state.dousedCount} OFF`;
   ui('gbox-douse').className = `gbox${p.lampInRange ? ' hot' : ''}`;
-  ui('vent-val').textContent = p.ventInRange ? 'ENTER!' : 'LINKED';
+  ui('vent-val').textContent = p.ventInRange ? 'ENTER' : 'LINKED';
   ui('gbox-vent').className = `gbox${p.ventInRange ? ' hot' : ''}`;
 
   const sorted = [...state.guards].sort((a, b) => ({ BREACH: 3, SWEEPING: 2, CURIOUS: 1, PATROL: 0 }[b.state] || 0) - ({ BREACH: 3, SWEEPING: 2, CURIOUS: 1, PATROL: 0 }[a.state] || 0));

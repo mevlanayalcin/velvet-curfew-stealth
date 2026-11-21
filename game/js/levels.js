@@ -1,7 +1,9 @@
-// Velvet Curfew — 5 Handcrafted Art-Deco Grand Museum Wings, Guard Archetypes & Stealth Perks
+// Velvet Curfew — 5 Handcrafted Art-Deco Grand Museum Wings (1024x648 HD), Guard Archetypes & Perks
 
-export const STAGE_W = 820;
-export const STAGE_H = 576;
+export const STAGE_W = 1024;
+export const STAGE_H = 648;
+const SX = STAGE_W / 820;
+const SY = STAGE_H / 576;
 
 export const STEALTH_PERKS = [
   { id: 'felt-soles', name: 'Felt Soles', tag: 'ACOUSTIC', desc: '-45% marble footstep noise & +15% crouch speed.', apply: (m) => { m.noiseMult *= 0.55; m.crouchSpeedMult *= 1.15; } },
@@ -15,37 +17,71 @@ export const STEALTH_PERKS = [
 export const GUARD_TYPES = {
   curator: {
     id: 'curator', name: 'Night Curator',
-    speed: 60, chaseSpeed: 106, visionRange: 196, fov: 0.72, hearMult: 1.0, suspicionRate: 0.85,
+    speed: 68, chaseSpeed: 120, visionRange: 232, fov: 0.72, hearMult: 1.0, suspicionRate: 0.85,
     cloak: '#e2b253', trim: '#f8efe0',
   },
   docent: {
     id: 'docent', name: 'Gallery Docent',
-    speed: 80, chaseSpeed: 124, visionRange: 162, fov: 0.64, hearMult: 1.45, suspicionRate: 0.96,
+    speed: 90, chaseSpeed: 138, visionRange: 192, fov: 0.64, hearMult: 1.45, suspicionRate: 0.96,
     cloak: '#e87948', trim: '#ffedd5',
   },
   inspector: {
     id: 'inspector', name: 'Chief Inspector',
-    speed: 58, chaseSpeed: 116, visionRange: 214, fov: 0.86, hearMult: 1.15, suspicionRate: 1.12,
+    speed: 64, chaseSpeed: 130, visionRange: 252, fov: 0.86, hearMult: 1.15, suspicionRate: 1.12,
     cloak: '#e11d48', trim: '#ffe4e6',
   },
 };
 
 function perimeter() {
   return [
-    { x: 0, y: 0, w: STAGE_W, h: 16, kind: 'wall' },
-    { x: 0, y: STAGE_H - 16, w: STAGE_W, h: 16, kind: 'wall' },
-    { x: 0, y: 16, w: 16, h: STAGE_H - 32, kind: 'wall' },
-    { x: STAGE_W - 16, y: 16, w: 16, h: STAGE_H - 32, kind: 'wall' },
+    { x: 0, y: 0, w: 820, h: 16, kind: 'wall' },
+    { x: 0, y: 560, w: 820, h: 16, kind: 'wall' },
+    { x: 0, y: 16, w: 16, h: 544, kind: 'wall' },
+    { x: 804, y: 16, w: 16, h: 544, kind: 'wall' },
   ];
 }
 
-export const MUSEUM_WINGS = [
+function scaleWingToHD(w) {
+  const sx = (v) => Math.round(v * SX);
+  const sy = (v) => Math.round(v * SY);
+  const sr = (v) => Math.round(v * 1.18);
+  const scaleRect = (o) => {
+    if (o.kind === 'column') {
+      const sz = Math.round(o.w * 1.16);
+      const cx = sx(o.x + o.w / 2), cy = sy(o.y + o.h / 2);
+      return { x: cx - Math.round(sz / 2), y: cy - Math.round(sz / 2), w: sz, h: sz, kind: 'column' };
+    }
+    return { x: sx(o.x), y: sy(o.y), w: sx(o.w), h: sy(o.h), kind: o.kind };
+  };
+  return {
+    ...w,
+    spawn: { x: sx(w.spawn.x), y: sy(w.spawn.y) },
+    opal: { x: sx(w.opal.x), y: sy(w.opal.y), label: w.opal.label },
+    elevator: { x: sx(w.elevator.x), y: sy(w.elevator.y), r: sr(w.elevator.r) },
+    relics: (w.relics || []).map((p) => ({ x: sx(p.x), y: sy(p.y) })),
+    rotunda: w.rotunda ? { x: sx(w.rotunda.x), y: sy(w.rotunda.y), r: sr(w.rotunda.r) } : null,
+    carpets: (w.carpets || []).map((c) => ({ x: sx(c.x), y: sy(c.y), w: sx(c.w), h: sy(c.h) })),
+    lights: (w.lights || []).map((l) => ({ x: sx(l.x), y: sy(l.y), r: Math.round(l.r * 1.24) })),
+    vents: (w.vents || []).map((v) => ({ x: sx(v.x), y: sy(v.y), to: v.to })),
+    alcoves: (w.alcoves || []).map((a) => ({ x: sx(a.x), y: sy(a.y), w: sx(a.w), h: sy(a.h) })),
+    arches: (w.arches || []).map((a) => ({ x: sx(a.x), y: sy(a.y), w: sx(a.w), h: sy(a.h), orient: a.orient })),
+    obstacles: w.obstacles.map(scaleRect),
+    cameras: (w.cameras || []).map((c) => ({ ...c, x: sx(c.x), y: sy(c.y), range: sr(c.range) })),
+    tripwires: (w.tripwires || []).map((t) => ({ ...t, x1: sx(t.x1), y1: sy(t.y1), x2: sx(t.x2), y2: sy(t.y2) })),
+    guards: w.guards.map((g) => ({
+      ...g, x: sx(g.x), y: sy(g.y),
+      waypoints: g.waypoints.map((wp) => ({ x: sx(wp.x), y: sy(wp.y) })),
+    })),
+  };
+}
+
+const RAW_WINGS = [
   // WING I: GRAND ROTUNDA (Hero Cover 01-rotunda.jpg + Debrief Trail 04-debrief.jpg!)
   {
     id: 0, roman: 'I', title: 'GRAND ROTUNDA', par: 95,
-    objective: 'Slip unseen to the Star Sapphire vitrine, then board the Brass Elevator',
+    objective: 'Slip unseen to The Solis Opal vitrine, then board the Brass Elevator',
     spawn: { x: 74, y: 492 },
-    sapphire: { x: 410, y: 288, label: 'Star Sapphire' },
+    opal: { x: 410, y: 288, label: 'The Solis Opal' },
     elevator: { x: 748, y: 74, r: 24 },
     coins: 4, veils: 2,
     relics: [{ x: 102, y: 88 }, { x: 726, y: 494 }, { x: 410, y: 84 }],
@@ -121,9 +157,9 @@ export const MUSEUM_WINGS = [
   // WING II: VELVET PROMENADE (Used in 02-lure.jpg — CURIOUS · ? Brass Coin Lure + Laser Tripwire!)
   {
     id: 1, roman: 'II', title: 'VELVET PROMENADE', par: 105,
-    objective: 'Lure curators off the crimson promenade and claim the Star Sapphire',
+    objective: 'Lure curators off the crimson promenade and claim The Solis Opal',
     spawn: { x: 80, y: 492 },
-    sapphire: { x: 676, y: 288, label: 'Star Sapphire' },
+    opal: { x: 676, y: 288, label: 'The Solis Opal' },
     elevator: { x: 748, y: 72, r: 24 },
     coins: 4, veils: 2,
     relics: [{ x: 104, y: 86 }, { x: 426, y: 506 }, { x: 676, y: 494 }],
@@ -158,7 +194,7 @@ export const MUSEUM_WINGS = [
     ],
     obstacles: [
       ...perimeter(),
-      // Stepped promenade masonry wings + inner Sapphire Vault alcove
+      // Stepped promenade masonry wings + inner Opal Vault alcove
       { x: 16, y: 158, w: 150, h: 18, kind: 'wall' },
       { x: 228, y: 158, w: 120, h: 18, kind: 'wall' },
       { x: 472, y: 158, w: 90, h: 18, kind: 'wall' },
@@ -200,7 +236,7 @@ export const MUSEUM_WINGS = [
     id: 2, roman: 'III', title: 'VAULT VESTIBULE', par: 110,
     objective: 'Break sightlines with Velvet Veil and reach the Brass Elevator',
     spawn: { x: 72, y: 492 },
-    sapphire: { x: 236, y: 288, label: 'Star Sapphire' },
+    opal: { x: 236, y: 288, label: 'The Solis Opal' },
     elevator: { x: 746, y: 288, r: 24 },
     coins: 4, veils: 3,
     relics: [{ x: 96, y: 84 }, { x: 416, y: 84 }, { x: 416, y: 492 }],
@@ -271,12 +307,12 @@ export const MUSEUM_WINGS = [
     ],
   },
 
-  // WING IV: SAPPHIRE HALL
+  // WING IV: OPAL HALL
   {
-    id: 3, roman: 'IV', title: 'SAPPHIRE HALL', par: 115,
-    objective: 'Cross twin laser corridors, steal the Star Sapphire & ascend',
+    id: 3, roman: 'IV', title: 'OPAL HALL', par: 115,
+    objective: 'Cross twin laser corridors, steal The Solis Opal & ascend',
     spawn: { x: 74, y: 74 },
-    sapphire: { x: 726, y: 492, label: 'Star Sapphire' },
+    opal: { x: 726, y: 492, label: 'The Solis Opal' },
     elevator: { x: 74, y: 502, r: 24 },
     coins: 5, veils: 3,
     relics: [{ x: 726, y: 82 }, { x: 410, y: 288 }, { x: 246, y: 492 }],
@@ -314,9 +350,9 @@ export const MUSEUM_WINGS = [
   // WING V: OBSERVATORY PENTHOUSE
   {
     id: 4, roman: 'V', title: 'OBSERVATORY PENTHOUSE', par: 120,
-    objective: 'Outwit the Chief Inspectors and escape with the Crown Sapphire',
+    objective: 'Outwit the Chief Inspectors and escape with The Solis Opal',
     spawn: { x: 410, y: 514 },
-    sapphire: { x: 410, y: 288, label: 'Crown Sapphire' },
+    opal: { x: 410, y: 288, label: 'The Solis Opal' },
     elevator: { x: 410, y: 58, r: 24 },
     coins: 5, veils: 3,
     relics: [{ x: 84, y: 84 }, { x: 736, y: 84 }, { x: 84, y: 492 }, { x: 736, y: 492 }],
@@ -353,3 +389,5 @@ export const MUSEUM_WINGS = [
     ],
   },
 ];
+
+export const MUSEUM_WINGS = RAW_WINGS.map(scaleWingToHD);

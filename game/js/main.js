@@ -1,10 +1,10 @@
-// Velvet Curfew — Game Loop, Museum Wing Loader & Curfew Breach Orchestrator
+// Velvet Curfew — Game Loop, Museum Wing Loader & Curfew Breach Orchestrator (1280x720 HD)
 
 import { computeRaycastVisionCone, buildOccluderSegments } from './vision.js';
 import { updateCuratorPatrols, createCameras, createGuards, createTripwires } from './patrol.js';
 import {
   updateStealthDetection, douseNearbySconce, useBrassFloorVent,
-  deployVelvetVeilSmoke, throwBrassCoinLure, claimSapphire,
+  deployVelvetVeilSmoke, throwBrassCoinLure, claimSolisOpal,
   computeMods, evaluateStealthSurface, spawnSparks, updateEffects,
 } from './detection.js';
 import { SpatialStealthAudio } from './audio.js';
@@ -22,17 +22,23 @@ const sound = new SpatialStealthAudio();
 const shotParam = new URLSearchParams(window.location.search).get('shot');
 const input = { keys: new Set() };
 
+const SX = STAGE_W / 820;
+const SY = STAGE_H / 576;
+const px = (x) => Math.round(x * SX);
+const py = (y) => Math.round(y * SY);
+
 const state = {
   mode: 'title', shotMode: shotParam, selectedStartWing: 0,
   wingIndex: 0, wing: MUSEUM_WINGS[0], geom: buildOccluderSegments(MUSEUM_WINGS[0].obstacles),
   time: 0, score: 2500, ghostBonus: 2500, bellCount: 0, bellCooldown: 0, lockdown: false,
   alerts: 0, wingAlerts: 0, recoveries: 0, coins: 4, maxCoins: 4, coinsUsed: 0,
-  veils: 2, maxVeils: 2, dousedCount: 0, sapphireTaken: false,
+  veils: 2, maxVeils: 2, dousedCount: 0, opalTaken: false,
   relicItems: [], relicsTaken: 0, relicsTotal: 4, lights: [], perks: [], mods: computeMods([]),
   campaign: {}, player: null, guards: [], cameras: [], tripwires: [],
   coinsInFlight: [], lastCoinArc: null, ripples: [], guardSteps: [], veilsActive: [],
   particles: [], trail: [], debriefTrail: null, lastGlimpse: null, bellOrigin: null, bellLinks: [],
-  detectionState: 'UNSEEN', maxSuspicion: 0, aim: { x: 410, y: 288, active: false },
+  detectionState: 'UNSEEN', maxSuspicion: 0, contextPrompt: null,
+  aim: { x: STAGE_W / 2, y: STAGE_H / 2, active: false },
   draftOptions: [], ribbonTimer: 0,
 };
 
@@ -77,7 +83,7 @@ export function loadMuseumWing(idx, resetRun = false) {
   state.time = 0; state.wingAlerts = 0; state.bellCount = 0; state.bellCooldown = 0; state.lockdown = false;
   state.maxCoins = state.wing.coins + state.mods.bonusCoins; state.coins = state.maxCoins; state.coinsUsed = 0;
   state.maxVeils = state.wing.veils + state.mods.bonusVeils; state.veils = state.maxVeils;
-  state.dousedCount = 0; state.sapphireTaken = false;
+  state.dousedCount = 0; state.opalTaken = false; state.contextPrompt = null;
   state.relicItems = (state.wing.relics || []).map((r) => ({ x: r.x, y: r.y, taken: false }));
   state.relicsTaken = 0; state.relicsTotal = state.relicItems.length + 1;
   state.lights = state.wing.lights.map((l) => ({ x: l.x, y: l.y, r: l.r, lit: true }));
@@ -87,7 +93,7 @@ export function loadMuseumWing(idx, resetRun = false) {
   state.detectionState = 'UNSEEN'; state.maxSuspicion = 0;
 
   state.player = {
-    x: state.wing.spawn.x, y: state.wing.spawn.y, r: 10, angle: -0.5,
+    x: state.wing.spawn.x, y: state.wing.spawn.y, r: 11, angle: -0.5,
     crouched: false, hiding: false, inShadow: true, inLight: false,
     inAlcove: false, inSettee: false, inVeil: false, inDoused: false,
     lampInRange: false, ventInRange: false, onCarpet: false,
@@ -125,7 +131,7 @@ function handleWingClear() {
   state.campaign[state.wingIndex] = { grade: ghost ? 'S' : 'A', time: state.time };
   state.debriefTrail = {
     points: [...state.trail, { x: state.wing.elevator.x, y: state.wing.elevator.y }],
-    pins: [{ x: state.wing.spawn.x, y: state.wing.spawn.y, label: 'ENTRY', color: '#f0d084', dy: -20 }],
+    pins: [{ x: state.wing.spawn.x, y: state.wing.spawn.y, label: 'ENTRY', color: '#f0d084', dy: -22 }],
   };
   state.mode = 'debrief';
   renderDebriefLedger(state, (idx) => { loadMuseumWing(idx, false); state.mode = 'play'; setOverlay('play'); });
@@ -155,21 +161,22 @@ function applyShotPreset(shot) {
     state.relicItems[0].taken = true; state.relicItems[2].taken = true; state.relicsTaken = 2;
     state.coins = 3; state.coinsUsed = 1; state.veils = 2; state.dousedCount = 1;
     state.detectionState = 'CURIOUS'; state.lights[3].lit = false;
-    state.player.x = 228; state.player.y = 348; state.player.angle = -0.25; state.player.crouched = true; state.player.noise = 8;
-    state.lastCoinArc = { sx: 234, sy: 352, tx: 332, ty: 408, alpha: 0.94 };
+    state.player.x = px(228); state.player.y = py(348); state.player.angle = -0.25; state.player.crouched = true; state.player.noise = 8;
+    state.contextPrompt = 'SHIFT · CROUCH IN COVER';
+    state.lastCoinArc = { sx: px(234), sy: py(352), tx: px(332), ty: py(408), alpha: 0.94 };
     state.ripples = [
-      { x: 332, y: 408, r: 30, maxR: 150, alpha: 0.95, kind: 'coin', label: 'CLINK!' },
-      { x: 332, y: 408, r: 72, maxR: 150, alpha: 0.56, kind: 'coin' },
+      { x: px(332), y: py(408), r: 34, maxR: 170, alpha: 0.95, kind: 'coin', label: 'CLINK!' },
+      { x: px(332), y: py(408), r: 80, maxR: 170, alpha: 0.56, kind: 'coin' },
     ];
     const g0 = state.guards[0];
-    g0.x = 374; g0.y = 338; g0.angle = 2.34; g0.state = 'CURIOUS'; g0.suspicion = 0.72;
-    g0.lurePos = { x: 332, y: 408 }; g0.callout = 'FOOTSTEP?';
-    state.guards[1].x = 576; state.guards[1].y = 288; state.guards[1].angle = 2.98; state.guards[1].state = 'PATROL';
-    state.guards[2].x = 408; state.guards[2].y = 122; state.guards[2].angle = 0.72; state.guards[2].state = 'PATROL';
+    g0.x = px(374); g0.y = py(338); g0.angle = 2.34; g0.state = 'CURIOUS'; g0.suspicion = 0.72;
+    g0.lurePos = { x: px(332), y: py(408) }; g0.callout = 'FOOTSTEP?';
+    state.guards[1].x = px(576); state.guards[1].y = py(288); state.guards[1].angle = 2.98; state.guards[1].state = 'PATROL';
+    state.guards[2].x = px(408); state.guards[2].y = py(122); state.guards[2].angle = 0.72; state.guards[2].state = 'PATROL';
     state.cameras[0].angle = 2.48; state.tripwires[0].active = true;
     state.guardSteps = [
-      { x: 408, y: 122, r: 30, maxR: 48, alpha: 0.78, danger: false, label: 'STEP' },
-      { x: 576, y: 288, r: 26, maxR: 44, alpha: 0.65, danger: false },
+      { x: px(408), y: py(122), r: 34, maxR: 54, alpha: 0.8, danger: false, label: 'STEP' },
+      { x: px(576), y: py(288), r: 30, maxR: 50, alpha: 0.68, danger: false },
     ];
     evaluateStealthSurface(state, 0); recomputeAllCones(); setOverlay('play'); hideRibbonBanner(); updateCuratorTelemetry(state);
     return;
@@ -178,20 +185,20 @@ function applyShotPreset(shot) {
   if (shot === 'breach') {
     loadMuseumWing(2, true);
     state.mode = 'play'; state.time = 74; state.score = 4650;
-    state.sapphireTaken = true; state.relicItems[0].taken = true; state.relicItems[1].taken = true; state.relicsTaken = 3;
+    state.opalTaken = true; state.relicItems[0].taken = true; state.relicItems[1].taken = true; state.relicsTaken = 3;
     state.coins = 2; state.veils = 1; state.dousedCount = 1; state.lights[3].lit = false;
     state.wingAlerts = 1; state.bellCount = 1; state.detectionState = 'BREACH';
-    state.player.x = 612; state.player.y = 294; state.player.angle = 0; state.player.crouched = false; state.player.noise = 78;
-    state.veilsActive = [{ x: 468, y: 286, r: 64, maxR: 66, timer: 4.5, duration: 6.8, alpha: 0.92 }];
-    state.lastGlimpse = { x: 404, y: 288, angle: 0.05 };
-    const g0 = state.guards[0]; g0.x = 292; g0.y = 286; g0.angle = 0.04; g0.state = 'BREACH'; g0.suspicion = 1.0;
-    const g1 = state.guards[1]; g1.x = 412; g1.y = 114; g1.angle = 1.56; g1.state = 'SWEEPING'; g1.suspicion = 0.76; g1.callout = 'CONVERGING';
-    const g2 = state.guards[2]; g2.x = 412; g2.y = 462; g2.angle = -1.56; g2.state = 'SWEEPING'; g2.suspicion = 0.72; g2.callout = 'CONVERGING';
-    state.guards[3].x = 716; state.guards[3].y = 478; state.guards[3].angle = -1.62; state.guards[3].state = 'PATROL';
-    state.bellOrigin = { x: 292, y: 286 };
-    state.bellLinks = [{ x1: 292, y1: 286, x2: g1.x, y2: g1.y }, { x1: 292, y1: 286, x2: g2.x, y2: g2.y }];
+    state.player.x = px(612); state.player.y = py(294); state.player.angle = 0; state.player.crouched = false; state.player.noise = 78;
+    state.veilsActive = [{ x: px(468), y: py(286), r: 74, maxR: 76, timer: 4.5, duration: 6.8, alpha: 0.92 }];
+    state.lastGlimpse = { x: px(404), y: py(288), angle: 0.05 };
+    const g0 = state.guards[0]; g0.x = px(292); g0.y = py(286); g0.angle = 0.04; g0.state = 'BREACH'; g0.suspicion = 1.0;
+    const g1 = state.guards[1]; g1.x = px(412); g1.y = py(114); g1.angle = 1.56; g1.state = 'SWEEPING'; g1.suspicion = 0.76; g1.callout = 'CONVERGING';
+    const g2 = state.guards[2]; g2.x = px(412); g2.y = py(462); g2.angle = -1.56; g2.state = 'SWEEPING'; g2.suspicion = 0.72; g2.callout = 'CONVERGING';
+    state.guards[3].x = px(716); state.guards[3].y = py(478); state.guards[3].angle = -1.62; state.guards[3].state = 'PATROL';
+    state.bellOrigin = { x: px(292), y: py(286) };
+    state.bellLinks = [{ x1: px(292), y1: py(286), x2: g1.x, y2: g1.y }, { x1: px(292), y1: py(286), x2: g2.x, y2: g2.y }];
     state.cameras[0].angle = 2.38; state.tripwires[0].active = true;
-    state.guardSteps = [{ x: 716, y: 478, r: 28, maxR: 48, alpha: 0.78, danger: true, label: 'STEP' }];
+    state.guardSteps = [{ x: px(716), y: py(478), r: 32, maxR: 54, alpha: 0.8, danger: true, label: 'STEP' }];
     evaluateStealthSurface(state, 0); recomputeAllCones(); setOverlay('play');
     triggerRibbon('CURFEW BELL! Slip behind marble cover or pop Velvet Veil [E].', true, 99);
     updateCuratorTelemetry(state);
@@ -204,17 +211,17 @@ function applyShotPreset(shot) {
     state.relicItems[0].taken = true; state.relicItems[1].taken = true; state.relicsTaken = 2;
     state.coins = 3; state.veils = 1; state.dousedCount = 1; state.wingAlerts = 1; state.bellCount = 1;
     state.detectionState = 'SWEEPING'; state.lights[4].lit = false;
-    state.player.x = 556; state.player.y = 468; state.player.angle = -1.4; state.player.crouched = true; state.player.noise = 7;
-    state.veilsActive = [{ x: 486, y: 318, r: 44, maxR: 50, timer: 2.0, duration: 6.8, alpha: 0.68 }];
-    state.lastGlimpse = { x: 406, y: 288, angle: 0.2 };
-    const g0 = state.guards[0]; g0.x = 342; g0.y = 242; g0.angle = 0.62; g0.state = 'SWEEPING'; g0.suspicion = 0.74; g0.callout = 'SWEEPING';
-    state.guards[1].x = 224; state.guards[1].y = 110; state.guards[1].angle = 0.45; state.guards[1].state = 'PATROL';
-    state.guards[2].x = 648; state.guards[2].y = 354; state.guards[2].angle = 3.04; state.guards[2].state = 'PATROL';
-    const g3 = state.guards[3]; g3.x = 468; g3.y = 446; g3.angle = -1.96; g3.state = 'SWEEPING'; g3.suspicion = 0.64; g3.callout = 'DARKENED LAMP?';
+    state.player.x = px(556); state.player.y = py(468); state.player.angle = -1.4; state.player.crouched = true; state.player.noise = 7;
+    state.veilsActive = [{ x: px(486), y: py(318), r: 52, maxR: 58, timer: 2.0, duration: 6.8, alpha: 0.68 }];
+    state.lastGlimpse = { x: px(406), y: py(288), angle: 0.2 };
+    const g0 = state.guards[0]; g0.x = px(342); g0.y = py(242); g0.angle = 0.62; g0.state = 'SWEEPING'; g0.suspicion = 0.74; g0.callout = 'SWEEPING';
+    state.guards[1].x = px(224); state.guards[1].y = py(110); state.guards[1].angle = 0.45; state.guards[1].state = 'PATROL';
+    state.guards[2].x = px(648); state.guards[2].y = py(354); state.guards[2].angle = 3.04; state.guards[2].state = 'PATROL';
+    const g3 = state.guards[3]; g3.x = px(468); g3.y = py(446); g3.angle = -1.96; g3.state = 'SWEEPING'; g3.suspicion = 0.64; g3.callout = 'DARKENED LAMP?';
     state.cameras[0].angle = 2.45; state.tripwires[0].active = true;
     state.guardSteps = [
-      { x: 224, y: 110, r: 28, maxR: 48, alpha: 0.78, danger: false, label: 'STEP' },
-      { x: 648, y: 354, r: 24, maxR: 46, alpha: 0.68, danger: false },
+      { x: px(224), y: py(110), r: 32, maxR: 54, alpha: 0.8, danger: false, label: 'STEP' },
+      { x: px(648), y: py(354), r: 28, maxR: 52, alpha: 0.68, danger: false },
     ];
     evaluateStealthSurface(state, 0); recomputeAllCones(); setOverlay('play'); hideRibbonBanner(); updateCuratorTelemetry(state);
     return;
@@ -223,24 +230,24 @@ function applyShotPreset(shot) {
   if (shot === 'debrief') {
     loadMuseumWing(0, true);
     state.mode = 'debrief'; state.time = 78; state.score = 4850; state.ghostBonus = 2500;
-    state.sapphireTaken = true; state.relicItems.forEach((r) => { r.taken = true; });
+    state.opalTaken = true; state.relicItems.forEach((r) => { r.taken = true; });
     state.relicsTaken = 4; state.relicsTotal = 4; state.coinsUsed = 2; state.dousedCount = 2;
     state.lights[3].lit = false; state.lights[1].lit = false; state.wingAlerts = 0;
     state.campaign = { 0: { grade: 'S', time: 78 } };
-    state.guards[0].x = 342; state.guards[0].y = 410; state.guards[0].angle = -2.35;
-    state.guards[1].x = 572; state.guards[1].y = 336; state.guards[1].angle = 2.85;
-    state.guards[2].x = 310; state.guards[2].y = 122; state.guards[2].angle = 0.25;
+    state.guards[0].x = px(342); state.guards[0].y = py(410); state.guards[0].angle = -2.35;
+    state.guards[1].x = px(572); state.guards[1].y = py(336); state.guards[1].angle = 2.85;
+    state.guards[2].x = px(310); state.guards[2].y = py(122); state.guards[2].angle = 0.25;
     state.cameras[0].angle = 2.52;
     state.debriefTrail = {
       points: [
-        { x: 74, y: 492 }, { x: 86, y: 440 }, { x: 194, y: 444 }, { x: 244, y: 348 }, { x: 246, y: 170 },
-        { x: 246, y: 118 }, { x: 356, y: 118 }, { x: 410, y: 190 }, { x: 410, y: 288 }, { x: 454, y: 288 },
-        { x: 454, y: 222 }, { x: 572, y: 196 }, { x: 572, y: 112 }, { x: 678, y: 80 }, { x: 748, y: 74 },
-      ],
+        [74, 492], [86, 440], [194, 444], [244, 348], [246, 170],
+        [246, 118], [356, 118], [410, 190], [410, 288], [454, 288],
+        [454, 222], [572, 196], [572, 112], [678, 80], [748, 74],
+      ].map(([x, y]) => ({ x: px(x), y: py(y) })),
       pins: [
-        { x: 74, y: 492, label: 'ENTRY', color: '#f0d084', dy: -20 },
-        { x: 194, y: 444, label: 'DOUSED LAMP', color: '#38bdf8', dy: 24 },
-        { x: 246, y: 118, label: 'CLINK! LURE', color: '#f59e0b', dy: -20 },
+        { x: px(74), y: py(492), label: 'ENTRY', color: '#f0d084', dy: -22 },
+        { x: px(194), y: py(444), label: 'DOUSED LAMP', color: '#38bdf8', dy: 26 },
+        { x: px(246), y: py(118), label: 'CLINK! LURE', color: '#f59e0b', dy: -22 },
       ],
     };
     recomputeAllCones(); renderDebriefLedger(state, () => {}); setOverlay('play'); hideRibbonBanner(); updateCuratorTelemetry(state);
@@ -300,14 +307,14 @@ window.addEventListener('keydown', (e) => {
   else if (e.code === 'KeyV') { useBrassFloorVent(state, sound, triggerRibbon); updateCuratorTelemetry(state); }
   else if (e.code === 'KeyE') { deployVelvetVeilSmoke(state, sound, triggerRibbon); updateCuratorTelemetry(state); }
   else if (e.code === 'KeyQ' || e.code === 'Space') {
-    const tx = state.aim.active ? state.aim.x : state.player.x + Math.cos(state.player.angle) * 140;
-    const ty = state.aim.active ? state.aim.y : state.player.y + Math.sin(state.player.angle) * 140;
+    const tx = state.aim.active ? state.aim.x : state.player.x + Math.cos(state.player.angle) * 165;
+    const ty = state.aim.active ? state.aim.y : state.player.y + Math.sin(state.player.angle) * 165;
     throwBrassCoinLure(state, tx, ty, sound, triggerRibbon);
     updateCuratorTelemetry(state);
   } else if (e.code === 'KeyF') {
     const p = state.player;
-    if (!state.sapphireTaken && Math.hypot(p.x - state.wing.sapphire.x, p.y - state.wing.sapphire.y) < 54 + state.mods.lootRangeBonus) {
-      claimSapphire(state, sound, triggerRibbon);
+    if (!state.opalTaken && Math.hypot(p.x - state.wing.opal.x, p.y - state.wing.opal.y) < 64 + state.mods.lootRangeBonus) {
+      claimSolisOpal(state, sound, triggerRibbon);
     } else { p.hiding = !p.hiding; triggerRibbon(p.hiding ? 'CROUCH STANCE LOCKED' : 'UPRIGHT STANCE', false, 1.4); }
     updateCuratorTelemetry(state);
   }

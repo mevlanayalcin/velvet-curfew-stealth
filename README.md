@@ -8,10 +8,10 @@ An original 1920s Art-Deco 2.5D top-down tactical stealth heist across five gran
 
 ## Five Art-Deco Grand Museum Wings
 1. **Wing I: Grand Rotunda** — Chevron marble parquet, crimson velvet runners, octagonal ivory columns, and gilded vitrines.
-2. **Wing II: Velvet Promenade** — Tufted crimson gallery settees, bronze folding screens, and sweeping laser beams guarding the Star Sapphire.
+2. **Wing II: Velvet Promenade** — Tufted crimson gallery settees, bronze folding screens, and sweeping laser beams guarding The Solis Opal.
 3. **Wing III: Vault Vestibule** — High-tension escape corridors engineered for Velvet Smoke Veil sightline breaks.
-4. **Wing IV: Sapphire Hall** — Dual Brass-Eye camera domes and intersecting inspector lanes.
-5. **Wing V: Observatory Penthouse** — The culminating heist for the Crown Sapphire and roof Brass Elevator.
+4. **Wing IV: Opal Hall** — Dual Brass-Eye camera domes and intersecting inspector lanes.
+5. **Wing V: Observatory Penthouse** — The culminating heist for The Solis Opal and roof Brass Elevator.
 
 ## Core Stealth Mechanics
 - **True 2D Raycast Sightlines (`game/js/vision.js`)**: Lantern cones from Night Curators, Gallery Docents, Chief Inspectors, and Brass-Eye security domes cast pixel-accurate rays against brass-inlaid masonry walls, octagonal marble columns, gilded mahogany glass vitrines, ornate bronze screens, and drifting Velvet Smoke Veil clouds.

@@ -44,9 +44,9 @@ export function updateStealthDetection(state, input, dt, sound, onRibbon, onWing
     }
   } else p.stepTimer = 0.1;
 
-  const pickR = 30 + state.mods.lootRangeBonus;
-  if (!state.sapphireTaken && Math.hypot(p.x - state.wing.sapphire.x, p.y - state.wing.sapphire.y) < pickR) {
-    claimSapphire(state, sound, onRibbon);
+  const pickR = 34 + state.mods.lootRangeBonus;
+  if (!state.opalTaken && Math.hypot(p.x - state.wing.opal.x, p.y - state.wing.opal.y) < pickR) {
+    claimSolisOpal(state, sound, onRibbon);
   }
   for (const r of state.relicItems) {
     if (!r.taken && Math.hypot(p.x - r.x, p.y - r.y) < pickR) {
@@ -59,7 +59,7 @@ export function updateStealthDetection(state, input, dt, sound, onRibbon, onWing
   }
 
   const el = state.wing.elevator;
-  if (state.sapphireTaken && Math.hypot(p.x - el.x, p.y - el.y) < el.r + p.r) {
+  if (state.opalTaken && Math.hypot(p.x - el.x, p.y - el.y) < el.r + p.r) {
     if (sound) sound.playExtractChord();
     if (onWingClear) onWingClear();
   }
@@ -196,15 +196,15 @@ export function evaluateStealthSurface(state, dt) {
   p.exposure = p.inVeil ? 0.06 : p.inDoused ? 0.08 : p.inAlcove || (settee && p.crouched) ? 0.12 : p.inShadow ? 0.18 : Math.min(1, 0.36 + lightAmt * 0.64);
 }
 
-export function claimSapphire(state, sound, onRibbon) {
-  state.sapphireTaken = true;
+export function claimSolisOpal(state, sound, onRibbon) {
+  state.opalTaken = true;
   state.relicsTaken += 1;
   const pts = Math.round(1200 * state.mods.scoreMult);
   state.score += pts;
-  spawnSparks(state, state.wing.sapphire.x, state.wing.sapphire.y, '#38bdf8', 20);
-  state.ripples.push({ x: state.wing.sapphire.x, y: state.wing.sapphire.y, r: 10, maxR: 72, alpha: 0.85, kind: 'sapphire' });
+  spawnSparks(state, state.wing.opal.x, state.wing.opal.y, '#38bdf8', 22);
+  state.ripples.push({ x: state.wing.opal.x, y: state.wing.opal.y, r: 12, maxR: 84, alpha: 0.85, kind: 'opal' });
   if (sound) sound.playLootChime();
-  if (onRibbon) onRibbon(`STAR SAPPHIRE LIFTED (+${pts}) — BOARD THE BRASS ELEVATOR!`, false);
+  if (onRibbon) onRibbon(`THE SOLIS OPAL LIFTED (+${pts}) — BOARD THE BRASS ELEVATOR!`, false);
 }
 
 export function spawnSparks(state, x, y, color, count) {

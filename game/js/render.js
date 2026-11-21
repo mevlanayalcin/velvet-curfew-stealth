@@ -17,7 +17,7 @@ export function renderMuseumStage(ctx, state, nowSec) {
   for (const tw of state.tripwires) drawTripwire(ctx, tw, nowSec);
   for (const o of w.obstacles) if (o.kind !== 'settee') drawTallMuseumProp(ctx, o);
   drawSconceFixtures(ctx, state);
-  drawSapphireAndRelics(ctx, state, nowSec);
+  drawOpalAndRelics(ctx, state, nowSec);
   drawBrassElevator(ctx, state, nowSec);
   for (const sm of state.veilsActive) drawVelvetVeil(ctx, sm, nowSec);
   drawTacticalOverlays(ctx, state, nowSec);
@@ -45,27 +45,27 @@ export function drawDynamicLampPools(ctx, state, nowSec) {
     if (l.lit) {
       const rad = l.r * (1 + Math.sin(nowSec * 1.7 + l.x * 0.02) * 0.015);
       const gr = ctx.createRadialGradient(l.x, l.y, 4, l.x, l.y, rad);
-      gr.addColorStop(0, 'rgba(255, 224, 132, 0.50)');
-      gr.addColorStop(0.36, 'rgba(228, 176, 78, 0.28)');
-      gr.addColorStop(0.72, 'rgba(186, 130, 44, 0.09)');
-      gr.addColorStop(1, 'rgba(9, 13, 22, 0)');
+      gr.addColorStop(0, 'rgba(255, 224, 120, 0.68)');
+      gr.addColorStop(0.34, 'rgba(238, 180, 68, 0.40)');
+      gr.addColorStop(0.68, 'rgba(196, 134, 38, 0.15)');
+      gr.addColorStop(1, 'rgba(6, 9, 17, 0)');
       ctx.fillStyle = gr;
       ctx.beginPath(); ctx.arc(l.x, l.y, rad, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'rgba(244, 212, 130, 0.16)';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.arc(l.x, l.y, rad * 0.68, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = 'rgba(246, 216, 138, 0.24)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(l.x, l.y, rad * 0.66, 0, Math.PI * 2); ctx.stroke();
     } else {
-      const rad = l.r * 0.64;
+      const rad = l.r * 0.60;
       const dg = ctx.createRadialGradient(l.x, l.y, 4, l.x, l.y, rad);
-      dg.addColorStop(0, 'rgba(2, 5, 13, 0.86)');
-      dg.addColorStop(0.68, 'rgba(5, 10, 22, 0.58)');
-      dg.addColorStop(1, 'rgba(5, 10, 22, 0)');
+      dg.addColorStop(0, 'rgba(2, 4, 11, 0.90)');
+      dg.addColorStop(0.68, 'rgba(4, 8, 19, 0.64)');
+      dg.addColorStop(1, 'rgba(4, 8, 19, 0)');
       ctx.fillStyle = dg;
       ctx.beginPath(); ctx.arc(l.x, l.y, rad, 0, Math.PI * 2); ctx.fill();
       ctx.save();
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.48)';
-      ctx.setLineDash([5, 5]); ctx.lineWidth = 1.4;
-      ctx.beginPath(); ctx.arc(l.x, l.y, rad * 0.82, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.54)';
+      ctx.setLineDash([5, 5]); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(l.x, l.y, rad * 0.80, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
     }
   }
@@ -100,15 +100,15 @@ function getMuseumFloor(wing) {
   off.height = STAGE_H;
   const g = off.getContext('2d');
 
-  // Deep nocturnal obsidian-indigo marble base so warm light pools vs cool shadows pop at thumbnail scale!
-  g.fillStyle = '#090d16';
+  // Deep midnight chiaroscuro obsidian-navy floor so warm golden lamp pools vs dark shadows pop at thumbnail scale!
+  g.fillStyle = '#060911';
   g.fillRect(0, 0, STAGE_W, STAGE_H);
 
-  const step = 34;
+  const step = 38;
   for (let y = -step; y < STAGE_H + step; y += step) {
     for (let x = -step; x < STAGE_W + step; x += step) {
       const alt = ((Math.floor(x / step) + Math.floor(y / step)) & 1) === 0;
-      g.fillStyle = alt ? '#0e1422' : '#090d16';
+      g.fillStyle = alt ? '#0b101d' : '#060911';
       g.beginPath();
       g.moveTo(x + step / 2, y);
       g.lineTo(x + step, y + step / 2);
@@ -537,100 +537,126 @@ function drawTripwire(ctx, tw, nowSec) {
   ctx.restore();
 }
 
-function drawSapphireAndRelics(ctx, state, nowSec) {
-  // Gilded Museum Relics (small Art-Deco chalices/gems on pedestals)
+function drawOpalAndRelics(ctx, state, nowSec) {
+  // Gilded Museum Relics
   for (const r of state.relicItems) {
     if (r.taken) continue;
     ctx.save();
     ctx.translate(r.x, r.y);
     ctx.fillStyle = '#2b2217';
     ctx.strokeStyle = '#c9a252';
-    ctx.lineWidth = 1.2;
-    ctx.fillRect(-9, -9, 18, 18);
-    ctx.strokeRect(-9, -9, 18, 18);
-    ctx.fillStyle = '#f0d084';
+    ctx.lineWidth = 1.3;
+    ctx.fillRect(-10, -10, 20, 20);
+    ctx.strokeRect(-10, -10, 20, 20);
+    ctx.fillStyle = '#f6d88a';
     ctx.beginPath();
-    ctx.moveTo(0, -6); ctx.lineTo(5, 0); ctx.lineTo(0, 6); ctx.lineTo(-5, 0);
+    ctx.moveTo(0, -6.5); ctx.lineTo(5.5, 0); ctx.lineTo(0, 6.5); ctx.lineTo(-5.5, 0);
     ctx.closePath(); ctx.fill();
     ctx.restore();
   }
 
-  // Star Sapphire Octagonal Pedestal Vitrine
-  const S = state.wing.sapphire;
+  // The Solis Opal — Iridescent Cyan-Gold Octagonal Pedestal Vitrine
+  const O = state.wing.opal;
   const pulse = 0.5 + 0.5 * Math.sin(nowSec * 3.8);
   ctx.save();
-  ctx.translate(S.x, S.y);
+  ctx.translate(O.x, O.y);
   ctx.fillStyle = '#182132';
-  ctx.strokeStyle = '#e5be67';
-  ctx.lineWidth = 1.8;
+  ctx.strokeStyle = '#f6d88a';
+  ctx.lineWidth = 2;
   ctx.beginPath();
   for (let i = 0; i < 8; i++) {
     const a = (i * Math.PI) / 4 + Math.PI / 8;
-    i === 0 ? ctx.moveTo(Math.cos(a) * 19, Math.sin(a) * 19) : ctx.lineTo(Math.cos(a) * 19, Math.sin(a) * 19);
+    i === 0 ? ctx.moveTo(Math.cos(a) * 21, Math.sin(a) * 21) : ctx.lineTo(Math.cos(a) * 21, Math.sin(a) * 21);
   }
   ctx.closePath(); ctx.fill(); ctx.stroke();
 
-  if (!state.sapphireTaken) {
-    const glow = ctx.createRadialGradient(0, 0, 2, 0, 0, 32 + pulse * 6);
-    glow.addColorStop(0, 'rgba(56, 189, 248, 0.65)');
-    glow.addColorStop(0.55, 'rgba(37, 99, 235, 0.25)');
+  if (!state.opalTaken) {
+    const glow = ctx.createRadialGradient(0, 0, 2, 0, 0, 38 + pulse * 6);
+    glow.addColorStop(0, 'rgba(253, 224, 71, 0.62)');
+    glow.addColorStop(0.48, 'rgba(56, 189, 248, 0.36)');
     glow.addColorStop(1, 'rgba(56, 189, 248, 0)');
     ctx.fillStyle = glow;
-    ctx.beginPath(); ctx.arc(0, 0, 36, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, 42, 0, Math.PI * 2); ctx.fill();
 
-    // Faceted royal Star Sapphire crystal
-    ctx.fillStyle = '#38bdf8';
+    // Iridescent cyan-gold Solis Opal cabochon diamond
+    const og = ctx.createLinearGradient(-10, -12, 10, 12);
+    og.addColorStop(0, '#fef08a');
+    og.addColorStop(0.48, '#38bdf8');
+    og.addColorStop(1, '#f59e0b');
+    ctx.fillStyle = og;
     ctx.beginPath();
-    ctx.moveTo(0, -11); ctx.lineTo(9, 0); ctx.lineTo(0, 11); ctx.lineTo(-9, 0);
+    ctx.moveTo(0, -13); ctx.lineTo(10.5, 0); ctx.lineTo(0, 13); ctx.lineTo(-10.5, 0);
     ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = '#e0f2fe'; ctx.lineWidth = 1.4; ctx.stroke();
+    ctx.strokeStyle = '#fef9c3'; ctx.lineWidth = 1.6; ctx.stroke();
     ctx.fillStyle = '#ffffff';
-    ctx.beginPath(); ctx.arc(-2, -3, 2.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-2.5, -3.5, 2.6, 0, Math.PI * 2); ctx.fill();
 
-    drawTag(ctx, 0, -28, 'STAR SAPPHIRE', '#bae6fd', 'rgba(11, 20, 38, 0.92)', '#38bdf8', false);
+    drawTag(ctx, 0, -32, 'THE SOLIS OPAL', '#fef08a', 'rgba(12, 20, 38, 0.94)', '#38bdf8', false);
   } else {
-    ctx.strokeStyle = 'rgba(52, 211, 153, 0.72)';
+    ctx.strokeStyle = 'rgba(52, 211, 153, 0.78)';
     ctx.setLineDash([3, 3]);
-    ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.stroke();
     ctx.setLineDash([]);
-    drawTag(ctx, 0, 29, 'SAPPHIRE TAKEN', '#6ee7b7', 'rgba(11, 26, 22, 0.92)', '#34d399', false);
+    drawTag(ctx, 0, 32, 'OPAL TAKEN', '#6ee7b7', 'rgba(11, 26, 22, 0.94)', '#34d399', false);
   }
   ctx.restore();
 }
 
 function drawBrassElevator(ctx, state, nowSec) {
   const el = state.wing.elevator;
-  const open = state.sapphireTaken;
+  const open = state.opalTaken;
   const pulse = 0.5 + 0.5 * Math.sin(nowSec * 4.0);
 
   ctx.save();
   ctx.translate(el.x, el.y);
-  const glow = ctx.createRadialGradient(0, 0, 4, 0, 0, 38 + pulse * 5);
-  glow.addColorStop(0, open ? 'rgba(52, 211, 153, 0.55)' : 'rgba(201, 162, 82, 0.38)');
-  glow.addColorStop(1, 'rgba(201, 162, 82, 0)');
+  const glow = ctx.createRadialGradient(0, 0, 4, 0, 0, 46 + pulse * 6);
+  glow.addColorStop(0, open ? 'rgba(52, 211, 153, 0.72)' : 'rgba(201, 162, 82, 0.34)');
+  glow.addColorStop(1, 'rgba(52, 211, 153, 0)');
   ctx.fillStyle = glow;
-  ctx.beginPath(); ctx.arc(0, 0, 40, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(0, 0, 48, 0, Math.PI * 2); ctx.fill();
 
-  // Gilded Art-Deco Brass Elevator Cab & Sliding Gate Bars
-  ctx.fillStyle = open ? '#113026' : '#241d14';
-  ctx.strokeStyle = open ? '#34d399' : '#e5be67';
-  ctx.lineWidth = 2.2;
-  ctx.fillRect(-19, -18, 38, 36);
-  ctx.strokeRect(-19, -18, 38, 36);
-
-  // Semicircular brass floor-dial indicator at top of cab
-  ctx.strokeStyle = '#f0d084';
-  ctx.lineWidth = 1.3;
-  ctx.beginPath(); ctx.arc(0, -6, 11, Math.PI, 0); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(open ? 6 : -5, -14); ctx.stroke();
-
-  // Vertical gilded elevator gate bars
-  ctx.strokeStyle = open ? 'rgba(110, 231, 183, 0.65)' : 'rgba(201, 162, 82, 0.65)';
-  ctx.lineWidth = 1.2;
-  for (const bx of [-10, -4, 4, 10]) {
-    ctx.beginPath(); ctx.moveTo(bx, -3); ctx.lineTo(bx, 15); ctx.stroke();
+  if (open) {
+    // Luminous outer emerald frame when unlocked!
+    ctx.strokeStyle = 'rgba(52, 211, 153, 0.85)';
+    ctx.lineWidth = 2.2;
+    ctx.strokeRect(-26, -24, 52, 48);
   }
-  drawTag(ctx, 0, 28, open ? 'ELEVATOR OPEN' : 'ELEVATOR', open ? '#6ee7b7' : '#f0d084', 'rgba(13, 16, 24, 0.94)', open ? '#34d399' : '#c9a252', false);
+
+  ctx.fillStyle = open ? '#0e3628' : '#241c13';
+  ctx.strokeStyle = open ? '#4ade80' : '#e5be67';
+  ctx.lineWidth = open ? 2.6 : 2;
+  ctx.fillRect(-21, -19, 42, 38);
+  ctx.strokeRect(-21, -19, 42, 38);
+
+  // Semicircular brass floor dial
+  ctx.strokeStyle = open ? '#86efac' : '#f0d084';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.arc(0, -6, 12, Math.PI, 0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(open ? 7 : -6, -15); ctx.stroke();
+
+  if (open) {
+    // Open gilded elevator doors
+    ctx.strokeStyle = 'rgba(134, 239, 172, 0.8)';
+    ctx.lineWidth = 1.6;
+    for (const bx of [-15, -11, 11, 15]) {
+      ctx.beginPath(); ctx.moveTo(bx, -3); ctx.lineTo(bx, 16); ctx.stroke();
+    }
+    drawTag(ctx, 0, 32, 'ELEVATOR OPEN', '#6ee7b7', 'rgba(8, 30, 22, 0.96)', '#34d399', false);
+  } else {
+    // Closed vertical bars + clear brass padlock badge
+    ctx.strokeStyle = 'rgba(201, 162, 82, 0.65)';
+    ctx.lineWidth = 1.3;
+    for (const bx of [-11, -4, 4, 11]) {
+      ctx.beginPath(); ctx.moveTo(bx, -3); ctx.lineTo(bx, 16); ctx.stroke();
+    }
+    ctx.fillStyle = '#0d1018';
+    ctx.strokeStyle = '#f6d88a';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(0, 4, 4.5, Math.PI, 0); ctx.stroke();
+    ctx.fillRect(-5.5, 4, 11, 8);
+    ctx.strokeRect(-5.5, 4, 11, 8);
+    drawTag(ctx, 0, 31, 'LOCKED · ELEVATOR', '#f6d88a', 'rgba(18, 14, 9, 0.95)', '#c9a252', false);
+  }
   ctx.restore();
 }
 
@@ -798,30 +824,48 @@ function drawInfiltrator(ctx, state) {
   ctx.save();
   ctx.translate(p.x, p.y);
 
-  ctx.strokeStyle = hidden ? '#38bdf8' : '#f0d084';
-  ctx.lineWidth = 2;
-  if (hidden) ctx.setLineDash([4, 3]);
-  ctx.beginPath(); ctx.arc(0, 0, p.r + 5, 0, Math.PI * 2); ctx.stroke();
+  // Bright luminous emerald HIDDEN aura ring for unmistakable player readability!
+  if (hidden) {
+    const aura = ctx.createRadialGradient(0, 0, p.r * 0.6, 0, 0, p.r + 16);
+    aura.addColorStop(0, 'rgba(52, 211, 153, 0.36)');
+    aura.addColorStop(1, 'rgba(52, 211, 153, 0)');
+    ctx.fillStyle = aura;
+    ctx.beginPath(); ctx.arc(0, 0, p.r + 16, 0, Math.PI * 2); ctx.fill();
+  }
+
+  ctx.strokeStyle = hidden ? '#34d399' : '#f6d88a';
+  ctx.lineWidth = hidden ? 2.5 : 2.1;
+  if (hidden) ctx.setLineDash([5, 3]);
+  ctx.beginPath(); ctx.arc(0, 0, p.r + 6, 0, Math.PI * 2); ctx.stroke();
   ctx.setLineDash([]);
 
-  // Art-Deco Midnight Cloak Silhouette + Gilded Mask Visor
+  // Art-Deco Midnight Cloak Silhouette + Luminous Visor
   ctx.rotate(p.angle);
-  ctx.fillStyle = '#0e1d30';
-  ctx.strokeStyle = hidden ? '#7dd3fc' : '#f4ece0';
-  ctx.lineWidth = 2.1;
+  ctx.fillStyle = hidden ? '#0b2b2c' : '#16253b';
+  ctx.strokeStyle = hidden ? '#a7f3d0' : '#f6efe2';
+  ctx.lineWidth = 2.4;
   ctx.beginPath();
-  ctx.ellipse(-1, 0, p.r - 0.5, p.r + 1.2, 0, 0, Math.PI * 2);
+  ctx.ellipse(-1, 0, p.r, p.r + 1.5, 0, 0, Math.PI * 2);
   ctx.fill(); ctx.stroke();
 
-  ctx.fillStyle = state.sapphireTaken ? '#38bdf8' : '#f0d084';
+  ctx.fillStyle = state.opalTaken ? '#fef08a' : '#6ee7b7';
   ctx.beginPath();
-  ctx.moveTo(7.5, 0); ctx.lineTo(1.2, -4.5); ctx.lineTo(3.2, 0); ctx.lineTo(1.2, 4.5);
+  ctx.moveTo(8.2, 0); ctx.lineTo(1.5, -5); ctx.lineTo(3.6, 0); ctx.lineTo(1.5, 5);
   ctx.closePath(); ctx.fill();
   ctx.restore();
 
   if (hidden && state.detectionState !== 'BREACH') {
-    const lbl = p.inVeil ? 'VELVET VEIL' : p.inDoused ? 'DEEP SHADOW' : 'HIDDEN IN SHADOW';
-    drawTag(ctx, p.x, p.y + 23, lbl, '#6ee7b7', 'rgba(8, 22, 26, 0.95)', '#34d399');
+    const lbl = p.inVeil ? 'VELVET VEIL' : p.inSettee ? 'HIDDEN' : p.inDoused ? 'DEEP SHADOW' : 'HIDDEN';
+    drawTag(ctx, p.x, p.y + 24, lbl, '#6ee7b7', 'rgba(6, 24, 22, 0.96)', '#34d399');
+  }
+
+  // Contextual stealth action prompt pill (crouch cover / douse lamp)
+  if (state.contextPrompt) {
+    drawTag(ctx, p.x, p.y - 26, state.contextPrompt, '#f6d88a', 'rgba(9, 13, 22, 0.95)', '#c9a252');
+  } else if (state.mode === 'play' && !state.shotMode && p.lampInRange) {
+    drawTag(ctx, p.x, p.y - 26, 'R · DOUSE LAMP', '#f6d88a', 'rgba(9, 13, 22, 0.95)', '#c9a252');
+  } else if (state.mode === 'play' && !state.shotMode && p.inSettee && p.crouched) {
+    drawTag(ctx, p.x, p.y - 26, 'SHIFT · CROUCH IN COVER', '#a7f3d0', 'rgba(8, 22, 20, 0.95)', '#34d399');
   }
 }
 
