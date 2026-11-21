@@ -1,7 +1,7 @@
-// Velvet Curfew — Guard Patrol, Suspicion, Coin-Lure Investigation & Recovery AI
+// Velvet Curfew v2 — Guard AI, Brass-Eye Cameras, Laser Tripwires & Alarm Rally Network
 
 import { GUARD_TYPES } from './levels.js';
-import { angleDiff, computeVisionPolygon, hasLineOfSight, normalizeAngle } from './vision.js';
+import { angleDiff, computeVisionPolygon, hasLineOfSight, normalizeAngle, pointToSegmentDist } from './vision.js';
 
 export function createGuards(wing, geom) {
   return wing.guards.map((g, idx) => {
@@ -14,13 +14,15 @@ export function createGuards(wing, geom) {
       y: g.y,
       r: 11,
       angle: g.angle ?? 0,
-      state: 'PATROL', // PATROL | SUSPICIOUS | ALERT | SEARCH | RETURN
+      state: 'PATROL', // PATROL | SUSPICIOUS | ALARM | SEARCHING
       suspicion: 0,
       peakSuspicion: 0,
       stateTimer: 0,
       waypoints: g.waypoints.map((w) => ({ x: w.x, y: w.y })),
       wpIndex: 0,
       investigateTarget: null,
+      lurePos: null,
+      rallyTarget: null,
       fromLure: false,
       searchDir: 1,
       hitCooldown: 0,
@@ -31,25 +33,53 @@ export function createGuards(wing, geom) {
   });
 }
 
+export function createCameras(wing, geom) {
+  return (wing.cameras || []).map((c, idx) => {
+    const cam = {
+      id: idx,
+      x: c.x,
+      y: c.y,
+      baseAngle: c.baseAngle,
+      angle: c.baseAngle,
+      sweep: c.sweep,
+      speed: c.speed,
+      range: c.range,
+      fov: c.fov,
+      alerting: false,
+      visionPoly: [],
+    };
+    cam.visionPoly = computeVisionPolygon(cam.x, cam.y, cam.angle, cam.fov, cam.range, geom, []);
+    return cam;
+  });
+}
+
+export function createTripwires(wing) {
+  return (wing.tripwires || []).map((t, idx) => ({
+    id: idx,
+    x1: t.x1, y1: t.y1, x2: t.x2, y2: t.y2,
+    period: t.period || 4.4,
+    duty: t.duty || 0.62,
+    phase: t.phase || 0,
+    active: true,
+    cooldown: 0,
+  }));
+}
+
 function moveWithSlide(entity, dx, dy, obstacles) {
-  const tryAxis = (nx, ny) => {
+  const ok = (nx, ny) => {
     for (let i = 0; i < obstacles.length; i++) {
       const o = obstacles[i];
+      if (o.kind === 'low') continue; // guards can skirt low planters slightly cleanly
       const cx = Math.max(o.x, Math.min(nx, o.x + o.w));
       const cy = Math.max(o.y, Math.min(ny, o.y + o.h));
-      const distSq = (nx - cx) * (nx - cx) + (ny - cy) * (ny - cy);
-      if (distSq < entity.r * entity.r) return false;
+      if ((nx - cx) * (nx - cx) + (ny - cy) * (ny - cy) < entity.r * entity.r) return false;
     }
     return true;
   };
-  if (tryAxis(entity.x + dx, entity.y + dy)) {
-    entity.x += dx;
-    entity.y += dy;
-    return true;
-  }
+  if (ok(entity.x + dx, entity.y + dy)) { entity.x += dx; entity.y += dy; return true; }
   let moved = false;
-  if (tryAxis(entity.x + dx, entity.y)) { entity.x += dx; moved = true; }
-  if (tryAxis(entity.x, entity.y + dy)) { entity.y += dy; moved = true; }
+  if (ok(entity.x + dx, entity.y)) { entity.x += dx; moved = true; }
+  if (ok(entity.x, entity.y + dy)) { entity.y += dy; moved = true; }
   return moved;
 }
 
@@ -62,15 +92,15 @@ function turnToward(current, target, maxStep) {
 export function alertGuardsToSound(state, x, y, radius, isLure, sound) {
   let attracted = 0;
   for (const g of state.guards) {
-    const effRadius = radius * g.spec.hearMult;
+    if (g.state === 'ALARM') continue;
     const dist = Math.hypot(g.x - x, g.y - y);
-    if (dist > effRadius) continue;
-    if (g.state === 'ALERT') continue;
+    if (dist > radius * g.spec.hearMult) continue;
     g.investigateTarget = { x, y };
+    g.lurePos = isLure ? { x, y } : null;
     g.fromLure = Boolean(isLure);
     g.state = 'SUSPICIOUS';
-    g.stateTimer = (isLure ? 3.4 : 2.1) + (isLure ? state.mods.lureHoldBonus : 0);
-    g.suspicion = Math.max(g.suspicion, isLure ? 0.42 : 0.34);
+    g.stateTimer = (isLure ? 3.5 : 2.2) + (isLure ? state.mods.lureHoldBonus : 0);
+    g.suspicion = Math.max(g.suspicion, isLure ? 0.55 : 0.36);
     g.peakSuspicion = Math.max(g.peakSuspicion, g.suspicion);
     attracted++;
   }
@@ -78,71 +108,114 @@ export function alertGuardsToSound(state, x, y, radius, isLure, sound) {
   return attracted;
 }
 
-export function updateGuards(state, dt, sound, onPlayerHit, onToast) {
+export function triggerAlarmAt(state, sourceGuard, x, y, sound, onToast) {
+  state.alerts += 1;
+  state.wingAlerts += 1;
+  state.alarmLevel = Math.min(3, state.alarmLevel + 1);
+  state.lastSeen = { x, y };
+  state.alarmOrigin = { x, y };
+  state.alarmLinks = [];
+
+  for (const g of state.guards) {
+    if (sourceGuard && g.id === sourceGuard.id) {
+      g.state = 'ALARM';
+      g.suspicion = 1;
+      g.stateTimer = 4.2;
+      g.investigateTarget = { x, y };
+      continue;
+    }
+    if (Math.hypot(g.x - x, g.y - y) < 380) {
+      g.state = 'SUSPICIOUS';
+      g.suspicion = Math.max(g.suspicion, 0.72);
+      g.peakSuspicion = Math.max(g.peakSuspicion, 0.72);
+      g.investigateTarget = { x, y };
+      g.rallyTarget = { x, y };
+      g.stateTimer = 4.0;
+      state.alarmLinks.push({ x1: x, y1: y, x2: g.x, y2: g.y });
+    }
+  }
+  if (sound) sound.alertSiren();
+  if (onToast) onToast('SPOTTED! Break line of sight or drop Smoke [Q].', true);
+  if (state.alarmLevel >= 3) {
+    state.lockdown = true;
+  }
+}
+
+export function updateSecurity(state, dt, sound, onPlayerHit, onToast) {
   const p = state.player;
   const obs = state.wing.obstacles;
-  let maxSuspicion = 0;
-  let anyAlert = false;
+  const concealedByCover = p.inSmoke || (p.inLowCover && p.crouched);
+
+  // 1. Update Brass-Eye Security Cameras
+  for (const cam of state.cameras) {
+    cam.angle = cam.baseAngle + Math.sin(state.time * cam.speed + cam.id * 1.3) * cam.sweep;
+    cam.visionPoly = computeVisionPolygon(cam.x, cam.y, cam.angle, cam.fov, cam.range, state.geom, state.smokesActive);
+    const dx = p.x - cam.x, dy = p.y - cam.y;
+    const dist = Math.hypot(dx, dy);
+    const inCone = dist < cam.range && Math.abs(angleDiff(Math.atan2(dy, dx), cam.angle)) <= cam.fov * 0.5;
+    cam.alerting = inCone && !concealedByCover && hasLineOfSight(cam.x, cam.y, p.x, p.y, state.geom, state.smokesActive);
+    if (cam.alerting && state.alarmCooldown <= 0) {
+      state.alarmCooldown = 3.2;
+      triggerAlarmAt(state, null, p.x, p.y, sound, onToast);
+    }
+  }
+
+  // 2. Update Pulsing Crimson Laser Tripwires
+  for (const tw of state.tripwires) {
+    if (tw.cooldown > 0) tw.cooldown = Math.max(0, tw.cooldown - dt);
+    const cycle = ((state.time + tw.phase) % tw.period) / tw.period;
+    tw.active = cycle < tw.duty;
+    if (tw.active && tw.cooldown <= 0 && pointToSegmentDist(p.x, p.y, tw.x1, tw.y1, tw.x2, tw.y2) < p.r + 3) {
+      tw.cooldown = 3.0;
+      triggerAlarmAt(state, null, p.x, p.y, sound, onToast);
+    }
+  }
+  if (state.alarmCooldown > 0) state.alarmCooldown = Math.max(0, state.alarmCooldown - dt);
+
+  // 3. Update Patrolling Guards
+  let maxSusp = 0;
+  let highestState = 'HIDDEN'; // HIDDEN | SUSPICIOUS | SEARCHING | ALARM
 
   for (const g of state.guards) {
     if (g.hitCooldown > 0) g.hitCooldown = Math.max(0, g.hitCooldown - dt);
-
-    // 1. Check visual detection of infiltrator
-    const dx = p.x - g.x;
-    const dy = p.y - g.y;
+    const dx = p.x - g.x, dy = p.y - g.y;
     const dist = Math.hypot(dx, dy);
-    const angToPlayer = Math.atan2(dy, dx);
-    const relAng = Math.abs(angleDiff(angToPlayer, g.angle));
-
-    const effectiveRange = g.spec.visionRange * (p.inShadow && p.crouched ? 0.54 : p.inShadow ? 0.72 : p.inLight ? 1.12 : 0.94);
-    const inCone = dist < effectiveRange && relAng <= g.spec.fov * 0.5;
-    const closeBump = dist < 24 && !p.inSmoke;
-    const canSee = (inCone || closeBump) && !p.inSmoke && hasLineOfSight(g.x, g.y, p.x, p.y, state.geom, state.smokesActive);
+    const relAng = Math.abs(angleDiff(Math.atan2(dy, dx), g.angle));
+    const effRange = g.spec.visionRange * (p.inShadow && p.crouched ? 0.55 : p.inShadow ? 0.75 : p.inLight ? 1.12 : 0.94);
+    const canSee = !concealedByCover && ((dist < effRange && relAng <= g.spec.fov * 0.5) || dist < 22)
+      && hasLineOfSight(g.x, g.y, p.x, p.y, state.geom, state.smokesActive);
 
     if (canSee) {
-      const distFactor = Math.max(0.35, 1.35 - dist / effectiveRange);
-      const lightFactor = p.inLight ? 1.45 * state.mods.lightPenaltyMult : p.inShadow ? 0.42 : 0.95;
-      const crouchFactor = p.crouched ? 0.72 : 1.0;
-      const gain = g.spec.suspicionRate * distFactor * lightFactor * crouchFactor * state.mods.suspicionMult * dt;
+      const distF = Math.max(0.35, 1.35 - dist / effRange);
+      const lightF = p.inLight ? 1.45 : p.inShadow ? 0.45 : 0.95;
+      const gain = g.spec.suspicionRate * distF * lightF * (p.crouched ? 0.72 : 1) * state.mods.suspicionMult * dt;
       const prev = g.suspicion;
       g.suspicion = Math.min(1, g.suspicion + gain);
       g.peakSuspicion = Math.max(g.peakSuspicion, g.suspicion);
       g.investigateTarget = { x: p.x, y: p.y };
+      state.lastSeen = { x: p.x, y: p.y };
       g.fromLure = false;
+      g.lurePos = null;
 
-      if (prev < 0.25 && g.suspicion >= 0.25 && g.state === 'PATROL') {
+      if (prev < 0.24 && g.suspicion >= 0.24 && g.state === 'PATROL') {
         g.state = 'SUSPICIOUS';
         g.stateTimer = 2.6;
         if (sound) sound.suspicionSting();
       }
-      if (g.suspicion >= 1 && g.state !== 'ALERT') {
-        g.state = 'ALERT';
-        g.stateTimer = 4.2;
-        state.alerts += 1;
-        state.wingAlerts += 1;
-        if (sound) sound.alertSiren();
-        if (onToast) onToast(`${g.spec.name.toUpperCase()} RAISED ALERT!`);
+      if (g.suspicion >= 1 && g.state !== 'ALARM') {
+        triggerAlarmAt(state, g, p.x, p.y, sound, onToast);
       }
-    } else {
-      // Suspicion drains when infiltrator breaks sightline
-      const drainRate = (g.state === 'ALERT' ? 0.16 : 0.24) * state.mods.recoveryMult;
-      if (g.suspicion > 0) {
-        g.suspicion = Math.max(0, g.suspicion - drainRate * dt);
-      }
+    } else if (g.suspicion > 0) {
+      const drain = (g.state === 'ALARM' ? 0.16 : 0.23) * state.mods.recoveryMult;
+      g.suspicion = Math.max(0, g.suspicion - drain * dt);
     }
 
-    // 2. State machine movement
-    if (g.state === 'ALERT') {
-      anyAlert = true;
+    if (g.state === 'ALARM') {
       const tgt = g.investigateTarget || { x: p.x, y: p.y };
-      const tx = tgt.x - g.x;
-      const ty = tgt.y - g.y;
-      const td = Math.hypot(tx, ty);
-      if (td > 6) {
-        const want = Math.atan2(ty, tx);
-        g.angle = turnToward(g.angle, want, 6.2 * dt);
-        const step = g.spec.chaseSpeed * dt;
-        moveWithSlide(g, (tx / td) * step, (ty / td) * step, obs);
+      const tx = tgt.x - g.x, ty = tgt.y - g.y, td = Math.hypot(tx, ty);
+      if (td > 8) {
+        g.angle = turnToward(g.angle, Math.atan2(ty, tx), 6.2 * dt);
+        moveWithSlide(g, (tx / td) * g.spec.chaseSpeed * dt, (ty / td) * g.spec.chaseSpeed * dt, obs);
       }
       if (dist < g.r + p.r + 4 && g.hitCooldown <= 0) {
         g.hitCooldown = 1.6;
@@ -151,77 +224,70 @@ export function updateGuards(state, dt, sound, onPlayerHit, onToast) {
       if (!canSee) {
         g.stateTimer -= dt;
         if (g.stateTimer <= 0) {
-          g.state = 'SEARCH';
-          g.stateTimer = 2.6;
-          g.suspicion = Math.min(g.suspicion, 0.7);
+          g.state = 'SEARCHING';
+          g.stateTimer = 3.2;
+          g.suspicion = 0.62;
+          state.alarmOrigin = null;
+          state.alarmLinks = [];
         }
       } else {
-        g.stateTimer = 3.8;
+        g.stateTimer = 3.6;
       }
     } else if (g.state === 'SUSPICIOUS') {
-      if (g.investigateTarget) {
-        const tx = g.investigateTarget.x - g.x;
-        const ty = g.investigateTarget.y - g.y;
-        const td = Math.hypot(tx, ty);
-        const want = Math.atan2(ty, tx);
-        g.angle = turnToward(g.angle, want, 3.8 * dt);
-        if (td > 18) {
-          const step = g.spec.speed * 0.92 * dt;
-          moveWithSlide(g, (tx / td) * step, (ty / td) * step, obs);
+      const tgt = g.investigateTarget;
+      if (tgt) {
+        const tx = tgt.x - g.x, ty = tgt.y - g.y, td = Math.hypot(tx, ty);
+        g.angle = turnToward(g.angle, Math.atan2(ty, tx), 3.8 * dt);
+        if (td > 20) {
+          moveWithSlide(g, (tx / td) * g.spec.speed * 0.92 * dt, (ty / td) * g.spec.speed * 0.92 * dt, obs);
         } else {
-          g.state = 'SEARCH';
-          g.stateTimer = Math.max(1.8, g.stateTimer);
+          g.state = 'SEARCHING';
+          g.stateTimer = Math.max(2.0, g.stateTimer);
           g.searchDir = Math.random() < 0.5 ? 1 : -1;
         }
       } else {
-        g.state = 'SEARCH';
+        g.state = 'SEARCHING';
         g.stateTimer = 2.0;
       }
-    } else if (g.state === 'SEARCH') {
+    } else if (g.state === 'SEARCHING') {
       g.angle = normalizeAngle(g.angle + g.searchDir * 1.45 * dt);
       g.stateTimer -= dt;
       if (g.stateTimer <= 0) {
-        if (g.peakSuspicion >= 0.4 && state.wingAlerts === 0) {
+        if (g.peakSuspicion >= 0.42) {
           state.recoveries += 1;
           state.score += Math.round(150 * state.mods.scoreMult);
           if (state.mods.recoveryBurst) p.sprintTimer = 2.4;
           if (sound) sound.recoveryChime();
-          if (onToast) onToast('NEAR-MISS RECOVERY · +150 GHOST BONUS');
+          if (onToast) onToast('NEAR-MISS RECOVERY · +150 GHOST BONUS', false);
         }
-        if (g.fromLure && state.mods.coinRefund && state.coins < state.maxCoins) {
-          state.coins += 1;
-        }
+        if (g.fromLure && state.mods.coinRefund && state.coins < state.maxCoins) state.coins += 1;
         g.peakSuspicion = 0;
         g.fromLure = false;
+        g.lurePos = null;
+        g.rallyTarget = null;
         g.investigateTarget = null;
         g.state = 'PATROL';
       }
     } else {
-      // PATROL waypoints
       const wp = g.waypoints[g.wpIndex];
-      const tx = wp.x - g.x;
-      const ty = wp.y - g.y;
-      const td = Math.hypot(tx, ty);
+      const tx = wp.x - g.x, ty = wp.y - g.y, td = Math.hypot(tx, ty);
       if (td < 8) {
         g.wpIndex = (g.wpIndex + 1) % g.waypoints.length;
       } else {
-        const want = Math.atan2(ty, tx);
-        g.angle = turnToward(g.angle, want, 3.4 * dt);
-        const step = g.spec.speed * dt;
-        moveWithSlide(g, (tx / td) * step, (ty / td) * step, obs);
+        g.angle = turnToward(g.angle, Math.atan2(ty, tx), 3.4 * dt);
+        moveWithSlide(g, (tx / td) * g.spec.speed * dt, (ty / td) * g.spec.speed * dt, obs);
       }
     }
 
-    // 3. Recompute crisp occluded raycast vision cone
-    g.visionPoly = computeVisionPolygon(
-      g.x, g.y, g.angle, g.spec.fov, g.spec.visionRange, state.geom, state.smokesActive
-    );
-    maxSuspicion = Math.max(maxSuspicion, g.suspicion);
+    g.visionPoly = computeVisionPolygon(g.x, g.y, g.angle, g.spec.fov, g.spec.visionRange, state.geom, state.smokesActive);
+    maxSusp = Math.max(maxSusp, g.suspicion);
+    if (g.state === 'ALARM') highestState = 'ALARM';
+    else if (g.state === 'SEARCHING' && highestState !== 'ALARM') highestState = 'SEARCHING';
+    else if (g.state === 'SUSPICIOUS' && highestState === 'HIDDEN') highestState = 'SUSPICIOUS';
   }
 
-  if (maxSuspicion > 0.35 && sound) {
-    sound.heartbeat(state.time, anyAlert ? 1 : maxSuspicion);
-  }
-  state.maxSuspicion = maxSuspicion;
-  state.anyAlert = anyAlert;
+  if (highestState === 'HIDDEN') state.lastSeen = null;
+  if (maxSusp > 0.35 && sound) sound.heartbeat(state.time, highestState === 'ALARM' ? 1 : maxSusp);
+  state.maxSuspicion = maxSusp;
+  state.detectionState = highestState;
 }

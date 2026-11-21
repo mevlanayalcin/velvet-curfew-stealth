@@ -4,29 +4,28 @@
 
 # VELVET CURFEW
 
-An original Art-Deco 2.5D top-down tactical stealth heist game built in plain ES modules + HTML5 Canvas + procedural Web Audio API — zero build step, zero external assets, zero network requests.
+An original Art-Deco 2.5D top-down tactical stealth heist game across five interconnected multi-room museum wings — built in plain ES modules, HTML5 Canvas, and procedural Web Audio API with zero build step and zero external requests.
 
-## Infiltrate Five Museum Wings
-1. **Wing I: Meridian Rotunda** — Fluted marble pillars, chandelier glare, and your first Brass Coin lures.
-2. **Wing II: Clockwork Archive** — Mahogany library stacks patrolled by an acutely hearing Bell Hound.
-3. **Wing III: Glass Conservatory** — Moonlit crossways demanding Velvet Smoke chains.
-4. **Wing IV: Velvet Gallery** — Twin Night Captains sweeping broad portrait corridors.
-5. **Wing V: Observatory Vault** — Inner sanctum heist for the Sovereign Ledger.
+## Five Multi-Room Museum Wings
+1. **The Meridian Rotunda** — Fluted pillars, chandelier pools, and your first Brass-Eye camera.
+2. **The Meridian Archive** — Interconnected counting-house vaults and crimson carpet halls.
+3. **The Glass Conservatory** — Transparent glasshouse walls, low-cover botanical planters, and twin Brass-Eye sweeps.
+4. **The Clockwork Foundry** — Six-room casting complex guarded by a pulsing crimson laser tripwire and rallying captains.
+5. **The Observatory Vault** — Final sanctum heist with twin cameras, laser gates, and Bell Hound patrols.
 
-## Core Stealth Systems
-- **True 2D Raycast Visibility Polygons (`game/js/vision.js`)**: Every guard's lantern cone casts rays against obstacle corners (`±0.0008 rad`) and active Velvet Smoke clouds for pixel-accurate occlusion behind cover.
-- **Light vs. Shadow & Acoustics (`game/js/detection.js`)**: Warm chandelier pools expose your silhouette while deep indigo pockets and marble cover keep you hidden. Terrazzo marble amplifies footsteps compared to crimson velvet runners.
-- **Guard AI & Near-Miss Recovery (`game/js/patrol.js`)**: Three distinct archetypes (`Lantern Warden`, `Bell Hound`, `Night Captain`) transition smoothly through `PATROL → SUSPICIOUS (?) → ALERT (!) → SEARCH → RECOVERY`. Escaping a high-suspicion sweep awards a Ghost Recovery bonus.
-- **Between-Wing Stealth Perk Draft**: Pick 1 of 3 tactical perks between museum wings (*Felt Soles*, *Brass Resonator*, *Nightshade Veil*, and 9 more).
-- **Procedural Noir Audio (`game/js/audio.js`)**: Synthesized ambient drone, marble vs. velvet footsteps, brass coin chimes, smoke hiss, suspicion stings, proximity heartbeat, and extraction chords.
+## Core Stealth Mechanics
+- **True 2D Raycast Visibility Cones (`game/js/vision.js`)**: Every Lantern Warden, Night Captain, Bell Hound, and sweeping Brass-Eye camera casts rays against tall walls, mahogany crates, and Velvet Smoke clouds — while glasshouse partitions and low crouch-cover planters preserve realistic sightlines.
+- **4-State Escalation & Recovery (`game/js/patrol.js`)**: `HIDDEN` → `SUSPICIOUS ?` (coin lures & `"WHAT WAS THAT?"`) → `ALARM !` (crimson shockwaves & `"ANSWERING ALARM"` neighbor rallies) → `SEARCHING` (orange sweep over `✕ LAST SEEN` while you slip back into cover).
+- **Light, Shadow, Low Cover & Gadgets (`game/js/detection.js`)**: Crouch (`SHIFT`) in shadow bays or emerald planters to vanish; toss Brass Coins (`LMB`/`SPACE`) to split sightlines; deploy Velvet Smoke (`Q`) to slice vision cones on demand.
+- **Between-Wing Stealth Perks & Procedural Audio (`game/js/audio.js`)**: Unlock perks between wings (*Felt Soles*, *Brass Resonator*, *Nightshade Veil*, and 6 more) backed by a synthesized Web Audio noir soundscape.
 
 ## Controls
 - `WASD` / `Arrows` — Move
-- `SHIFT` — Shadow Crouch
+- `SHIFT` — Shadow Crouch (hide in low cover / silent footsteps)
 - `LMB` / `SPACE` — Toss Brass Coin Lure
-- `E` — Loot / Toggle Hide Stance
 - `Q` — Deploy Velvet Smoke
-- `P` — Pause · `M` — Mute Sound · `R` — Restart Wing
+- `E` — Loot / Toggle Hide Stance
+- `P` — Pause · `M` — Mute · `R` — Restart Wing
 
 ## Run Locally
 ```bash

@@ -1,160 +1,106 @@
-// Velvet Curfew — Art-Deco HUD, Title, Between-Wing Perk Draft & Ghost Rank S Debrief
+// Velvet Curfew v2 — Right HUD Panel, Top Strip, Title, Perk Draft & Split Victory/Campaign UI
 
-import { GUARD_TYPES, WINGS } from './levels.js';
-import { computeGhostGrade } from './detection.js';
+import { WINGS } from './levels.js';
 
 const $ = (id) => document.getElementById(id);
 
 export function formatTime(sec) {
   const s = Math.max(0, Math.floor(sec));
-  const m = Math.floor(s / 60);
-  const r = s % 60;
-  return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 
 export function renderWingPicker(selectedIndex, onSelect) {
   const host = $('title-wing-list');
   host.innerHTML = '';
   WINGS.forEach((w, idx) => {
-    const btn = document.createElement('button');
-    btn.className = `wing-pill${idx === selectedIndex ? ' selected' : ''}`;
-    btn.innerHTML = `<strong>WING ${w.numeral}</strong><span>${w.shortName}</span>`;
-    btn.onclick = () => onSelect(idx);
-    host.appendChild(btn);
+    const b = document.createElement('button');
+    b.className = `wing-pill${idx === selectedIndex ? ' selected' : ''}`;
+    b.innerHTML = `<strong>WING ${w.num}</strong><span>${w.title.replace(/^THE\s+/, '').split(' ')[0]}</span>`;
+    b.onclick = () => onSelect(idx);
+    host.appendChild(b);
   });
 }
+
+const BANNER_META = {
+  HIDDEN: { cls: 'hidden-st', text: 'HIDDEN', sub: 'Unseen in shadow. Slip past lanterns.' },
+  SUSPICIOUS: { cls: 'suspicious', text: 'SUSPICIOUS ?', sub: 'Something caught an eye. Freeze.' },
+  ALARM: { cls: 'alarm', text: 'ALARM !', sub: 'You are seen! Break line of sight' },
+  SEARCHING: { cls: 'searching', text: 'SEARCHING', sub: 'They are hunting your last spot' },
+};
 
 export function syncHud(state) {
   const w = state.wing;
   const p = state.player;
 
-  $('hud-wing-name').textContent = w.name;
-  $('hud-wing-sub').textContent = `WING ${w.id + 1} OF ${WINGS.length} · CURFEW`;
+  $('hud-wing-num').textContent = String(w.num);
+  $('hud-wing-name').textContent = w.title;
+  $('hud-objective').textContent = state.ledgerStolen
+    ? `✓ ${w.ledger.label} stolen → OBJECTIVE: Reach the EXIT unseen`
+    : `OBJECTIVE: ${w.objective}`;
   $('hud-timer').textContent = formatTime(state.time);
   $('hud-score').textContent = state.score.toLocaleString('en-US');
 
-  // Integrity pips
-  const intEl = $('hud-integrity');
-  intEl.innerHTML = '';
-  for (let i = 0; i < state.maxIntegrity; i++) {
-    const d = document.createElement('span');
-    d.className = `int-pip${i >= state.integrity ? ' lost' : ''}`;
-    intEl.appendChild(d);
-  }
+  // Giant Detection Banner
+  const meta = BANNER_META[state.detectionState] || BANNER_META.HIDDEN;
+  const banner = $('hud-state-banner');
+  banner.textContent = meta.text;
+  banner.className = `state-banner ${meta.cls}`;
+  $('hud-state-sub').textContent = meta.sub;
 
-  // Ghost Streak tag
-  const gTag = $('hud-ghost-badge');
-  if (state.alerts === 0) {
-    gTag.textContent = 'GHOST STREAK · UNSEEN';
-    gTag.className = 'ghost-tag';
+  // Alarm 3-pip Escalation
+  const pips = $('hud-alarm-pips').children;
+  for (let i = 0; i < 3; i++) {
+    pips[i].className = `apip${i < state.alarmLevel ? (state.alarmLevel >= 2 || state.detectionState === 'ALARM' ? ' on-red' : ' on-warn') : ''}`;
+  }
+  const aw = $('hud-alarm-word');
+  aw.textContent = state.alarmLevel === 0 ? 'QUIET' : state.alarmLevel === 1 ? 'WARY' : state.alarmLevel === 2 ? 'HIGH' : 'LOCKDOWN';
+  aw.className = `alarm-word${state.alarmLevel >= 2 ? ' lock' : state.alarmLevel === 1 ? ' wary' : ''}`;
+
+  // Visibility Bar
+  const vw = $('hud-vis-word');
+  const vf = $('hud-vis-fill');
+  if (p.inLight) {
+    vw.textContent = 'IN THE LIGHT';
+    vw.className = 'bar-tag amber';
+    vf.className = 'bar-fill vis-light';
+    vf.style.width = `${Math.round(Math.max(62, p.visibility * 100))}%`;
   } else {
-    gTag.textContent = `ALERTS TRIGGERED: ${state.alerts}`;
-    gTag.className = 'ghost-tag broken';
+    vw.textContent = p.inSmoke ? 'IN SMOKE' : 'IN SHADOW';
+    vw.className = 'bar-tag emerald';
+    vf.className = 'bar-fill vis-shadow';
+    vf.style.width = `${Math.round(Math.max(8, p.visibility * 100))}%`;
   }
 
-  // Wing Objectives checklist
-  const objLedger = $('obj-ledger');
-  objLedger.className = `obj-item ${state.ledgerStolen ? 'done' : 'active'}`;
-  objLedger.querySelector('.obj-check').textContent = state.ledgerStolen ? '✓' : '○';
+  // Noise Bar
+  const nw = $('hud-noise-word');
+  const nf = $('hud-noise-fill');
+  const loud = p.noise >= 50 || state.detectionState === 'ALARM';
+  nw.textContent = loud ? 'LOUD' : p.noise >= 24 ? 'AUDIBLE' : 'SILENT';
+  nw.className = `bar-tag ${loud ? 'crimson' : 'emerald'}`;
+  nf.className = `bar-fill ${loud ? 'noise-loud' : 'noise-low'}`;
+  nf.style.width = `${Math.min(100, Math.max(8, Math.round(loud ? Math.max(85, p.noise) : p.noise)))}%`;
 
-  const objExit = $('obj-exit');
-  const extracted = state.mode === 'victory';
-  objExit.className = `obj-item ${extracted ? 'done' : state.ledgerStolen ? 'active' : ''}`;
-  objExit.querySelector('.obj-check').textContent = extracted ? '✓' : state.ledgerStolen ? '▸' : '○';
+  // Telemetry Counters
+  $('hud-loot').textContent = `${state.lootTaken}/${state.lootTotal}`;
+  renderDots($('hud-coins'), state.coins, state.maxCoins);
+  renderDots($('hud-smokes'), state.smokes, state.maxSmokes);
 
-  const objRelic = $('obj-relic');
-  objRelic.className = `obj-item ${state.relicStolen ? 'done' : 'bonus'}`;
-  objRelic.querySelector('.obj-check').textContent = state.relicStolen ? '✓' : '◇';
-
-  // Active Perks list
-  const perkEl = $('hud-perks');
-  const shown = state.perks.length
-    ? state.perks.slice(-3)
-    : [{ name: 'Velvet Steps', desc: 'Hold SHIFT to crouch quietly in shadow pockets.' }];
-  perkEl.innerHTML = shown
-    .map((pk) => `<div class="perk-chip"><span class="perk-name">${pk.name}</span><span class="perk-desc">${pk.desc}</span></div>`)
-    .join('');
-
-  // Light / Shadow Status Badge
-  const lb = $('hud-light-badge');
-  if (p.inSmoke) {
-    lb.textContent = 'SMOKED';
-    lb.className = 'light-badge smoked';
-  } else if (p.inShadow) {
-    lb.textContent = 'SHADOWED';
-    lb.className = 'light-badge shadowed';
-  } else {
-    lb.textContent = p.inLight ? 'EXPOSED' : 'DIM';
-    lb.className = `light-badge ${p.inLight ? 'exposed' : 'shadowed'}`;
-  }
-
-  // Acoustic Noise Bar
-  const db = Math.round(p.noise);
-  $('hud-noise-val').textContent = `${db} dB`;
-  $('hud-noise-bar').style.width = `${Math.min(100, Math.max(6, db))}%`;
-
-  // Alert / Recovery Bar
-  const suspPct = Math.round((state.maxSuspicion || 0) * 100);
-  const aVal = $('hud-alert-val');
-  const aBar = $('hud-alert-bar');
-  if (state.anyAlert) {
-    aVal.textContent = 'FULL ALERT!';
-    aVal.className = 'stat-v mono crimson';
-    aBar.className = 'meter-fill alert-fill';
-    aBar.style.width = '100%';
-  } else if (suspPct >= 15) {
-    aVal.textContent = `SUSPICION ${suspPct}%`;
-    aVal.className = 'stat-v mono amber';
-    aBar.className = 'meter-fill alert-fill';
-    aBar.style.width = `${suspPct}%`;
-  } else {
-    aVal.textContent = 'UNSEEN · CALM';
-    aVal.className = 'stat-v mono emerald';
-    aBar.className = 'meter-fill alert-fill calm';
-    aBar.style.width = '14%';
-  }
-
-  // Gadgets Pips
-  renderPips($('hud-coins'), state.coins, state.maxCoins);
-  renderPips($('hud-smokes'), state.smokes, state.maxSmokes);
-
-  // Guard Intel Summary (shows the 3 archetypes + live state badge)
-  const gHost = $('hud-guards');
-  const byType = ['warden', 'hound', 'captain'];
-  gHost.innerHTML = byType
-    .map((tid) => {
-      const spec = GUARD_TYPES[tid];
-      const active = state.guards.filter((g) => g.type === tid);
-      let badge = active.length ? `${active.length}×` : '—';
-      let cls = '';
-      if (active.some((g) => g.state === 'ALERT')) { badge = '!'; cls = 'alert'; }
-      else if (active.some((g) => g.state === 'SUSPICIOUS' || g.state === 'SEARCH' || g.suspicion > 0.25)) { badge = '?'; cls = 'warn'; }
-      return `<div class="guard-row">
-        <span class="guard-dot ${tid}"></span>
-        <div class="guard-info">
-          <div class="guard-name">${spec.name}</div>
-          <div class="guard-trait">${spec.trait}</div>
-        </div>
-        <span class="guard-state ${cls}">${badge}</span>
-      </div>`;
-    })
-    .join('');
-
-  // Ghost Streak Stats
-  const grade = computeGhostGrade(state.alerts, state.recoveries, state.relicStolen ? 1 : 0);
-  const alEl = $('hud-alerts-count');
-  alEl.textContent = String(state.alerts);
-  alEl.className = `streak-num mono ${state.alerts === 0 ? 'emerald' : 'crimson'}`;
+  const sp = $('hud-spotted');
+  sp.textContent = String(state.wingAlerts);
+  sp.className = `cnt-v mono ${state.wingAlerts === 0 ? 'emerald' : 'crimson'}`;
   $('hud-recoveries').textContent = String(state.recoveries);
-  $('hud-mult').textContent = `×${grade.mult.toFixed(1)}`;
+
+  const ex = $('hud-exit-status');
+  ex.textContent = state.ledgerStolen ? 'OPEN' : 'LOCKED';
+  ex.className = `cnt-v mono ${state.ledgerStolen ? 'emerald' : 'amber'}`;
 }
 
-function renderPips(el, current, max) {
+function renderDots(el, cur, max) {
   el.innerHTML = '';
-  for (let i = 0; i < max; i++) {
-    const sp = document.createElement('span');
-    sp.className = `pip${i >= current ? ' used' : ''}`;
-    el.appendChild(sp);
+  for (let i = 0; i < Math.min(5, max); i++) {
+    const d = document.createElement('span');
+    d.className = `dot${i >= cur ? ' used' : ''}`;
+    el.appendChild(d);
   }
 }
 
@@ -167,69 +113,52 @@ export function setOverlay(mode) {
 }
 
 export function renderTacticsOverlay(state, onPick) {
-  const prevWing = WINGS[Math.max(0, state.wingIndex - 1)];
-  const nextWing = state.wing;
-  $('tactics-kicker').textContent = `WING ${prevWing.numeral} CLEARED · GHOST BONUS +${state.lastWingBonus.toLocaleString('en-US')}`;
-  $('tactics-next-chip').innerHTML = `<span class="chip-k">NEXT WING (${nextWing.guards.length} GUARDS)</span><span class="chip-v">${nextWing.numeral} · ${nextWing.shortName.toUpperCase()}</span>`;
-  $('tactics-intel').innerHTML = `<span class="intel-badge">PATROL INTEL</span><span class="intel-copy">${nextWing.intel}</span>`;
-
   const grid = $('tactics-cards');
   grid.innerHTML = '';
-  state.draftOptions.forEach((perk, idx) => {
-    const btn = document.createElement('button');
-    btn.className = `draft-card${idx === 1 ? ' featured' : ''}`;
-    btn.innerHTML = `
-      <div class="draft-top">
-        <span class="draft-tag">${perk.tag}</span>
-        <span class="draft-key">[${idx + 1}]</span>
-      </div>
-      <div class="draft-glyph">${perk.glyph}</div>
-      <div class="draft-name">${perk.name}</div>
-      <div class="draft-desc">${perk.desc}</div>
-      <div class="draft-cta">${idx === 1 ? '★ RECOMMENDED · EQUIP' : 'SELECT PERK →'}</div>
-    `;
-    btn.onclick = () => onPick(perk);
-    grid.appendChild(btn);
+  state.draftOptions.forEach((pk, idx) => {
+    const b = document.createElement('button');
+    b.className = `draft-card${idx === 1 ? ' featured' : ''}`;
+    b.innerHTML = `<span class="draft-tag">${pk.tag} [${idx + 1}]</span><div class="draft-name">${pk.name}</div><div class="draft-desc">${pk.desc}</div>`;
+    b.onclick = () => onPick(pk);
+    grid.appendChild(b);
   });
 }
 
-export function renderVictoryOverlay(state) {
-  const g = computeGhostGrade(state.alerts, state.recoveries, state.relicsTotal || 0);
-  $('victory-grade').textContent = g.grade;
-  $('victory-rank-title').textContent = g.title;
-  $('victory-total-score').textContent = `TOTAL: ${state.score.toLocaleString('en-US')} PTS`;
+export function renderVictoryOverlay(state, onSelectWing) {
+  const w = state.wing;
+  const ghost = state.wingAlerts === 0;
+  $('vic-wing-kicker').textContent = `WING ${w.num} · ${w.title}`;
+  $('vic-rank-word').textContent = ghost ? 'VELVET GHOST' : 'SHADOW RUNNER';
+  $('vic-rank-copy').textContent = ghost
+    ? 'Never spotted. The Curfew Watch never knew you entered.'
+    : 'Extracted cleanly after breaking guard pursuit.';
+  $('vic-stars').textContent = ghost ? '★ ★ ★' : '★ ★ ☆';
+  $('vic-time').innerHTML = `${formatTime(state.time)} <em class="par">(par ${formatTime(w.par)})</em>`;
+  $('vic-spotted').textContent = String(state.wingAlerts);
+  $('vic-spotted').className = `mono ${ghost ? 'emerald' : 'crimson'}`;
+  $('vic-recoveries').textContent = String(state.recoveries);
+  $('vic-loot').textContent = `${state.lootTaken} / ${state.lootTotal}`;
 
-  const unseenPct = Math.round((state.wingScores.filter((w) => w.unseen).length / Math.max(1, state.wingScores.length)) * 100);
-  $('victory-kpis').innerHTML = [
-    { val: String(state.alerts), lbl: 'ALERTS', cls: state.alerts === 0 ? 'emerald' : 'crimson' },
-    { val: String(state.recoveries), lbl: 'RECOVERIES', cls: 'gold' },
-    { val: `${unseenPct}%`, lbl: 'UNSEEN STREAK', cls: 'cyan' },
-    { val: `${state.wingScores.length}/5`, lbl: 'LEDGERS', cls: 'gold' },
-  ]
-    .map((k) => `<div class="kpi-box"><span class="kpi-val ${k.cls}">${k.val}</span><span class="kpi-lbl">${k.lbl}</span></div>`)
-    .join('');
+  // Right column: 5-Wing Campaign Selector with GHOST / SHADOW grades
+  const list = $('vic-campaign-list');
+  list.innerHTML = '';
+  WINGS.forEach((wg, idx) => {
+    const rec = state.campaign[idx];
+    const row = document.createElement('div');
+    const isCur = idx === state.wingIndex;
+    const locked = !rec && idx > state.wingIndex + 1;
+    row.className = `camp-row${isCur ? ' active' : ''}${locked ? ' locked' : ''}`;
+    const meta = rec ? `Best ${formatTime(rec.time)}` : idx === state.wingIndex + 1 ? 'Ready to infiltrate' : 'Escape previous wing to unlock';
+    const gradeHtml = rec
+      ? `<div class="camp-grade"><span class="camp-stars">${rec.stars}</span><span class="camp-rank${rec.rank === 'SHADOW' ? ' shadow' : ''}">${rec.rank}</span></div>`
+      : '';
+    const titleCase = wg.title.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+    row.innerHTML = `<span class="camp-num">${wg.num}</span><div class="camp-info"><div class="camp-name">${titleCase}</div><div class="camp-meta">${meta}</div></div>${gradeHtml}`;
+    if (!locked) row.onclick = () => onSelectWing(idx);
+    list.appendChild(row);
+  });
 
-  const maxScore = Math.max(2500, ...state.wingScores.map((ws) => ws.score));
-  $('victory-bars').innerHTML = state.wingScores
-    .map((ws) => {
-      const pct = Math.max(14, Math.round((ws.score / maxScore) * 100));
-      return `<div class="bar-row">
-        <span class="bar-label">Wing ${ws.numeral} · ${ws.shortName}</span>
-        <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
-        <span class="bar-score">${ws.score.toLocaleString('en-US')}</span>
-      </div>`;
-    })
-    .join('');
-
-  const feats = [];
-  if (state.alerts === 0) feats.push('✦ VELVET GHOST (0 ALERTS)');
-  if (state.recoveries >= 2) feats.push(`◎ SHADOW DANCER (${state.recoveries} RECOVERIES)`);
-  feats.push('❖ SIREN COIN MASTER');
-  feats.push('♛ FLAWLESS EXTRACTION');
-  $('victory-feats').innerHTML = feats.map((f) => `<span class="feat-pill">${f}</span>`).join('');
-}
-
-export function renderGameOverOverlay(state, reason) {
-  $('gameover-reason').textContent = reason;
-  $('gameover-stats').innerHTML = `<span>Wing: <strong>${state.wing.numeral}</strong></span><span>Score: <strong class="gold">${state.score.toLocaleString('en-US')}</strong></span><span>Recoveries: <strong>${state.recoveries}</strong></span>`;
+  const perksHost = $('vic-perks');
+  const shown = state.perks.length ? state.perks : [{ name: 'Felt Soles' }, { name: 'Brass Resonator' }, { name: 'Nightshade Veil' }];
+  perksHost.innerHTML = shown.map((pk) => `<span class="ppill">✦ ${pk.name}</span>`).join('');
 }

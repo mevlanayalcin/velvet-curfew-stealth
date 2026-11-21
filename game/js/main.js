@@ -1,36 +1,22 @@
-// Velvet Curfew — Main Loop, Controls & Deterministic ?shot= Showcase Engine
+// Velvet Curfew v2 — Main Engine Loop, Input & 4-Shot Multi-Room Stealth Showcase
 
 import { PERKS, STAGE_H, STAGE_W, WINGS } from './levels.js';
 import { buildSegments, computeVisionPolygon } from './vision.js';
-import { createGuards, updateGuards } from './patrol.js';
+import { createCameras, createGuards, createTripwires, updateSecurity } from './patrol.js';
 import {
-  claimLedger,
-  claimRelic,
-  computeMods,
-  deploySmoke,
-  evaluateStealthSurface,
-  spawnSparks,
-  throwCoin,
-  updateEffects,
-  updatePlayer,
+  claimLedger, computeMods, deploySmoke, evaluateStealthSurface,
+  spawnSparks, throwCoin, updateEffects, updatePlayer,
 } from './detection.js';
 import { renderStage } from './render.js';
 import { SoundEngine } from './audio.js';
-import {
-  renderGameOverOverlay,
-  renderTacticsOverlay,
-  renderVictoryOverlay,
-  renderWingPicker,
-  setOverlay,
-  syncHud,
-} from './ui.js';
+import { renderTacticsOverlay, renderVictoryOverlay, renderWingPicker, setOverlay, syncHud } from './ui.js';
 
 const canvas = document.getElementById('stage');
 const ctx = canvas.getContext('2d');
 const sound = new SoundEngine();
 
 const params = new URLSearchParams(window.location.search);
-const shotParam = params.get('shot'); // 'play' | 'title' | 'tactics' | 'victory' | null
+const shotParam = params.get('shot'); // 'play' | 'alarm' | 'searching' | 'victory' | null
 
 const input = { keys: new Set() };
 
@@ -43,40 +29,50 @@ const state = {
   geom: buildSegments(WINGS[0].obstacles),
   time: 0,
   score: 0,
-  wingScores: [],
-  integrity: 3,
-  maxIntegrity: 3,
+  alarmLevel: 0,
+  alarmCooldown: 0,
+  lockdown: false,
   alerts: 0,
   wingAlerts: 0,
   recoveries: 0,
-  relicsTotal: 0,
   coins: 4,
   maxCoins: 4,
   smokes: 2,
   maxSmokes: 2,
   ledgerStolen: false,
-  relicStolen: false,
+  lootItems: [],
+  lootTaken: 0,
+  lootTotal: 4,
   perks: [],
   mods: computeMods([]),
+  campaign: {},
   player: null,
   guards: [],
+  cameras: [],
+  tripwires: [],
   coinsInFlight: [],
   ripples: [],
   smokesActive: [],
   particles: [],
-  aim: { x: 334, y: 284, active: false },
-  draftOptions: [],
-  lastWingBonus: 1200,
+  lastSeen: null,
+  alarmOrigin: null,
+  alarmLinks: [],
+  detectionState: 'HIDDEN',
   maxSuspicion: 0,
-  anyAlert: false,
-  toastTimer: 0,
+  aim: { x: 410, y: 288, active: false },
+  draftOptions: [],
+  ribbonTimer: 0,
 };
 
-function showToast(text, dur = 2.6) {
-  const el = document.getElementById('toast-banner');
+function showRibbon(text, isDanger = false, dur = 3.0) {
+  const el = document.getElementById('alert-ribbon');
   el.textContent = text;
-  el.classList.remove('hidden');
-  state.toastTimer = dur;
+  el.className = `alert-ribbon${isDanger ? '' : ' info'}`;
+  state.ribbonTimer = dur;
+}
+
+function hideRibbon() {
+  document.getElementById('alert-ribbon').classList.add('hidden');
 }
 
 function loadWing(idx, resetRun = false) {
@@ -87,289 +83,333 @@ function loadWing(idx, resetRun = false) {
     state.score = 0;
     state.alerts = 0;
     state.recoveries = 0;
-    state.relicsTotal = 0;
-    state.wingScores = [];
     state.perks = [];
   }
   state.mods = computeMods(state.perks);
   state.time = 0;
   state.wingAlerts = 0;
-  state.maxIntegrity = 3 + state.mods.bonusIntegrity;
-  state.integrity = state.maxIntegrity;
+  state.alarmLevel = 0;
+  state.alarmCooldown = 0;
+  state.lockdown = false;
   state.maxCoins = state.wing.coins + state.mods.bonusCoins;
   state.coins = state.maxCoins;
   state.maxSmokes = state.wing.smokes + state.mods.bonusSmokes;
   state.smokes = state.maxSmokes;
   state.ledgerStolen = false;
-  state.relicStolen = false;
+  state.lootItems = (state.wing.loot || []).map((l) => ({ x: l.x, y: l.y, taken: false }));
+  state.lootTaken = 0;
+  state.lootTotal = state.lootItems.length + 1;
   state.coinsInFlight = [];
   state.ripples = [];
   state.smokesActive = [];
   state.particles = [];
+  state.lastSeen = null;
+  state.alarmOrigin = null;
+  state.alarmLinks = [];
+  state.detectionState = 'HIDDEN';
   state.maxSuspicion = 0;
-  state.anyAlert = false;
 
   state.player = {
-    x: state.wing.spawn.x,
-    y: state.wing.spawn.y,
-    r: 10,
-    angle: -Math.PI / 4,
-    crouched: false,
-    hiding: false,
-    inShadow: true,
-    inLight: false,
-    inSmoke: false,
-    onCarpet: false,
-    shadowLingerTimer: 0,
-    sprintTimer: 0,
-    noise: 8,
-    stepTimer: 0.1,
+    x: state.wing.spawn.x, y: state.wing.spawn.y, r: 10, angle: -0.5,
+    crouched: false, hiding: false, inShadow: true, inLight: false,
+    inLowCover: false, inSmoke: false, onCarpet: false,
+    shadowLingerTimer: 0, sprintTimer: 0, noise: 6, visibility: 0.1, stepTimer: 0.1,
   };
   state.guards = createGuards(state.wing, state.geom);
+  state.cameras = createCameras(state.wing, state.geom);
+  state.tripwires = createTripwires(state.wing);
   evaluateStealthSurface(state, 0);
+  hideRibbon();
   syncHud(state);
 }
 
-function pickDraftOptions() {
-  const owned = new Set(state.perks.map((p) => p.id));
-  const pool = PERKS.filter((p) => !owned.has(p.id));
-  if (pool.length <= 3) return pool;
-  // Deterministic friendly triad on Wing I->II transition, shuffled variety later
-  if (state.wingIndex === 1 && !owned.has('felt-soles') && !owned.has('brass-resonator') && !owned.has('nightshade-veil')) {
-    return [PERKS[0], PERKS[1], PERKS[2]];
+function recomputeAllCones() {
+  for (const cam of state.cameras) {
+    cam.visionPoly = computeVisionPolygon(cam.x, cam.y, cam.angle, cam.fov, cam.range, state.geom, state.smokesActive);
   }
-  const copy = [...pool];
-  const out = [];
-  for (let i = 0; i < 3; i++) {
-    const k = Math.floor(Math.random() * copy.length);
-    out.push(copy.splice(k, 1)[0]);
+  for (const g of state.guards) {
+    g.visionPoly = computeVisionPolygon(g.x, g.y, g.angle, g.spec.fov, g.spec.visionRange, state.geom, state.smokesActive);
   }
-  return out;
 }
 
 function handleWingClear() {
-  const unseen = state.wingAlerts === 0;
-  const wingBonus = Math.round(((unseen ? 1200 : 450) + (unseen ? state.mods.wingBonus : 0)) * state.mods.scoreMult);
-  state.lastWingBonus = wingBonus;
-  state.score += wingBonus;
-  if (state.relicStolen) state.relicsTotal += 1;
-  state.wingScores.push({
-    numeral: state.wing.numeral,
-    shortName: state.wing.shortName,
-    score: (state.ledgerStolen ? 1000 : 0) + (state.relicStolen ? 600 : 0) + wingBonus,
+  const ghost = state.wingAlerts === 0;
+  state.score += Math.round((ghost ? 1500 : 650) * state.mods.scoreMult);
+  state.campaign[state.wingIndex] = {
     time: state.time,
-    unseen,
-  });
-
-  if (state.wingIndex >= WINGS.length - 1) {
-    state.mode = 'victory';
-    renderVictoryOverlay(state);
-    setOverlay('victory');
-    syncHud(state);
-    return;
-  }
-
-  loadWing(state.wingIndex + 1, false);
-  state.draftOptions = pickDraftOptions();
-  state.mode = 'tactics';
-  renderTacticsOverlay(state, choosePerk);
-  setOverlay('tactics');
+    stars: ghost ? '★★★' : '★★☆',
+    rank: ghost ? 'GHOST' : 'SHADOW',
+  };
+  state.mode = 'victory';
+  renderVictoryOverlay(state, (idx) => { loadWing(idx, false); state.mode = 'play'; setOverlay('play'); });
+  setOverlay('victory');
   syncHud(state);
-}
-
-function choosePerk(perk) {
-  sound.unlock();
-  sound.lootChime();
-  state.perks.push(perk);
-  loadWing(state.wingIndex, false);
-  state.mode = 'play';
-  setOverlay('play');
-  showToast(`EQUIPPED ${perk.name.toUpperCase()} — INFILTRATE WING ${state.wing.numeral}`);
 }
 
 function handlePlayerHit(guard) {
-  state.integrity = Math.max(0, state.integrity - 1);
   spawnSparks(state, state.player.x, state.player.y, '#ef4444', 18);
-  sound.alertSiren();
-  if (state.integrity <= 0) {
-    state.mode = 'gameover';
-    renderGameOverOverlay(state, `Apprehended by ${guard.spec.name} in ${state.wing.name}.`);
-    setOverlay('gameover');
-  } else {
-    showToast(`INTEGRITY HIT (${state.integrity}/${state.maxIntegrity}) — BREAK SIGHTLINE!`);
-  }
-  syncHud(state);
+  state.mode = 'gameover';
+  document.getElementById('gameover-reason').textContent = `Apprehended by ${guard.spec.name} in ${state.wing.title}.`;
+  setOverlay('gameover');
 }
 
-function startFromTitle() {
-  sound.unlock();
-  loadWing(state.selectedStartWing, true);
-  state.mode = 'play';
-  setOverlay('play');
-  showToast(`WING ${state.wing.numeral}: CLAIM THE VAULT LEDGER UNSEEN`);
-}
-
-// Configure deterministic showcase frames using the real live simulation & renderer
-function applyShotPreset(shot) {
-  if (shot === 'title') {
+function openNextWingOrDraft() {
+  if (state.wingIndex >= WINGS.length - 1) {
     loadWing(0, true);
-    state.mode = 'title';
-    renderWingPicker(0, () => {});
-    setOverlay('title');
-    // Sweep guards dynamically across meridian rotunda behind title card
-    updateGuards(state, 0.016, null, null, null);
-    syncHud(state);
-    return;
-  }
-
-  if (shot === 'play') {
-    // Hero Action Cover: Mid-heist tension in Meridian Rotunda!
-    loadWing(0, true);
-    state.perks = [PERKS[0], PERKS[3]]; // Felt Soles + Velvet Cloak
-    state.mods = computeMods(state.perks);
     state.mode = 'play';
-    state.time = 42;
-    state.score = 4850;
-    state.recoveries = 2;
-    state.alerts = 0;
-    state.coins = 3;
-    state.maxCoins = 4;
-    state.smokes = 1;
-    state.maxSmokes = 2;
-    state.ledgerStolen = true;
-    state.relicStolen = false;
-
-    // Infiltrator crouched safely in indigo shadow behind southwest marble pillar
-    state.player.x = 178;
-    state.player.y = 382;
-    state.player.angle = -0.35;
-    state.player.crouched = true;
-    state.player.noise = 12;
-
-    // Active Velvet Smoke cloud slicing Night Captain's eastern sightline
-    state.smokesActive = [
-      { x: 462, y: 162, r: 54, maxR: 56, timer: 4.6, duration: 6.5, alpha: 0.88 },
-    ];
-
-    // Guard 0: Suspicious (?) Lantern Warden drawn by chiming Brass Coin Lure, cone split dramatically by pillar!
-    const g0 = state.guards[0];
-    g0.x = 286; g0.y = 324; g0.angle = 2.66;
-    g0.state = 'SUSPICIOUS'; g0.suspicion = 0.68;
-
-    // Guard 1: Calm golden patrol cone sweeping crimson runner, clipped by SE marble pillar
-    const g1 = state.guards[1];
-    g1.x = 502; g1.y = 304; g1.angle = 2.92;
-    g1.state = 'PATROL'; g1.suspicion = 0;
-
-    // Guard 2: Night Captain sweeping broad lantern arc across upper rotunda, right edge occluded by Velvet Smoke!
-    const g2 = state.guards[2];
-    g2.x = 322; g2.y = 136; g2.angle = 0.62;
-    g2.state = 'PATROL'; g2.suspicion = 0;
-
-    // Concentric dashed Brass Coin Lure acoustic ripple rings
-    state.ripples = [
-      { x: 256, y: 424, r: 24, maxR: 150, alpha: 0.94, kind: 'coin', label: 'CLINK!' },
-      { x: 256, y: 424, r: 58, maxR: 150, alpha: 0.68, kind: 'coin' },
-      { x: 256, y: 424, r: 96, maxR: 150, alpha: 0.38, kind: 'coin' },
-    ];
-
-    for (const g of state.guards) {
-      g.visionPoly = computeVisionPolygon(g.x, g.y, g.angle, g.spec.fov, g.spec.visionRange, state.geom, state.smokesActive);
-    }
-    state.maxSuspicion = 0.68;
-    evaluateStealthSurface(state, 0);
     setOverlay('play');
-    document.getElementById('toast-banner').classList.add('hidden');
+    return;
+  }
+  loadWing(state.wingIndex + 1, false);
+  const owned = new Set(state.perks.map((p) => p.id));
+  const pool = PERKS.filter((p) => !owned.has(p.id));
+  state.draftOptions = pool.slice(0, 3);
+  if (state.draftOptions.length) {
+    state.mode = 'tactics';
+    renderTacticsOverlay(state, (pk) => {
+      state.perks.push(pk);
+      loadWing(state.wingIndex, false);
+      state.mode = 'play';
+      setOverlay('play');
+      showRibbon(`EQUIPPED ${pk.name.toUpperCase()} — WING ${state.wing.num}`, false);
+    });
+    setOverlay('tactics');
+  } else {
+    state.mode = 'play';
+    setOverlay('play');
+  }
+}
+
+// Configure exact deterministic multi-room showcase states driving the real raycast renderer
+function applyShotPreset(shot) {
+  if (shot === 'play') {
+    // HERO COVER: Wing 3 Glass Conservatory — SUSPICIOUS ? Coin Distraction + Brass-Eye Teal Cameras + HIDDEN in Low Cover!
+    loadWing(2, true);
+    state.mode = 'play';
+    state.time = 64;
+    state.score = 4850;
+    state.coins = 2;
+    state.maxCoins = 3;
+    state.smokes = 2;
+    state.lootTaken = 1;
+    state.recoveries = 2;
+    state.detectionState = 'SUSPICIOUS';
+    state.alarmLevel = 0;
+
+    // Player crouched HIDDEN inside lower-left emerald planter right past the Warden's cone!
+    state.player.x = 246;
+    state.player.y = 466;
+    state.player.angle = -0.3;
+    state.player.crouched = true;
+    state.player.noise = 8;
+
+    // Brass-Eye Cameras sweeping crisp teal cones clipped cleanly by mahogany crates
+    state.cameras[0].angle = 2.38;
+    state.cameras[1].angle = 2.46;
+
+    // Guard 0: Lantern Warden (?) drawn to tossed Brass Coin ("WHAT WAS THAT?") with yellow cone split by crates!
+    const g0 = state.guards[0];
+    g0.x = 546; g0.y = 404; g0.angle = -2.42;
+    g0.state = 'SUSPICIOUS'; g0.suspicion = 0.72;
+    g0.lurePos = { x: 462, y: 492 };
+
+    // Guard 1: Calm lower-left Lantern Warden sweeping past the player's hidden planter
+    const g1 = state.guards[1];
+    g1.x = 136; g1.y = 502; g1.angle = -0.84;
+    g1.state = 'PATROL';
+
+    // Guard 2: Upper gallery Warden sweeping left through doorway
+    const g2 = state.guards[2];
+    g2.x = 420; g2.y = 112; g2.angle = 3.14;
+    g2.state = 'PATROL';
+
+    // Guard 3: East wing Bell Hound sweeping downward across glass wall
+    const g3 = state.guards[3];
+    g3.x = 696; g3.y = 196; g3.angle = 1.02;
+    g3.state = 'PATROL';
+
+    state.ripples = [
+      { x: 462, y: 492, r: 42, maxR: 150, alpha: 0.92, kind: 'coin', label: 'WHAT WAS THAT?' },
+      { x: 462, y: 492, r: 96, maxR: 150, alpha: 0.56, kind: 'coin' },
+    ];
+    evaluateStealthSurface(state, 0);
+    recomputeAllCones();
+    setOverlay('play');
+    hideRibbon();
     syncHud(state);
     return;
   }
 
-  if (shot === 'tactics') {
+  if (shot === 'alarm') {
+    // SHOT 2: Wing 4 Clockwork Foundry — LIVE ALARM ! Red State + Answering Alarm + Laser Tripwire!
+    loadWing(3, true);
+    state.mode = 'play';
+    state.time = 38;
+    state.score = 6250;
+    state.coins = 3;
+    state.maxCoins = 3;
+    state.smokes = 2;
+    state.wingAlerts = 1;
+    state.alarmLevel = 1;
+    state.recoveries = 1;
+    state.detectionState = 'ALARM';
+
+    // Player caught in bright casting hall light
+    state.player.x = 418;
+    state.player.y = 266;
+    state.player.angle = 0.2;
+    state.player.crouched = false;
+    state.player.noise = 88;
+    state.player.inLight = true;
+    state.player.inShadow = false;
+    state.player.visibility = 0.88;
+
+    // Alerting Night Captain (!) with blazing crimson cone split around crates
+    const g0 = state.guards[0];
+    g0.x = 318; g0.y = 222; g0.angle = 0.62;
+    g0.state = 'ALARM'; g0.suspicion = 1;
+
+    // Two neighboring guards snapping to ? and answering the alarm
+    const g1 = state.guards[1];
+    g1.x = 288; g1.y = 112; g1.angle = 1.56;
+    g1.state = 'SUSPICIOUS'; g1.suspicion = 0.72;
+
+    const g2 = state.guards[2];
+    g2.x = 642; g2.y = 320; g2.angle = -1.62;
+    g2.state = 'SUSPICIOUS'; g2.suspicion = 0.72;
+
+    const g3 = state.guards[3];
+    g3.x = 196; g3.y = 506; g3.angle = 0.16;
+    g3.state = 'PATROL';
+
+    state.cameras[0].angle = 1.05;
+    state.tripwires[0].active = true;
+    state.alarmOrigin = { x: 418, y: 266 };
+    state.alarmLinks = [
+      { x1: 418, y1: 266, x2: g1.x, y2: g1.y },
+      { x1: 418, y1: 266, x2: g2.x, y2: g2.y },
+    ];
+
+    recomputeAllCones();
+    setOverlay('play');
+    showRibbon('SPOTTED! Break line of sight or drop Smoke [Q].', true, 99);
+    syncHud(state);
+    return;
+  }
+
+  if (shot === 'searching') {
+    // SHOT 3: Wing 2 Meridian Archive — LIVE SEARCHING / RECOVERY State over X LAST SEEN + Velvet Smoke!
     loadWing(1, true);
-    state.score = 3450;
+    state.mode = 'play';
+    state.time = 52;
+    state.score = 5400;
+    state.coins = 3;
+    state.maxCoins = 3;
+    state.smokes = 1;
+    state.wingAlerts = 1;
+    state.alarmLevel = 1;
     state.recoveries = 2;
-    state.alerts = 0;
-    state.lastWingBonus = 1200;
-    state.perks = [PERKS[3]];
-    state.draftOptions = [PERKS[0], PERKS[1], PERKS[2]];
-    state.mode = 'tactics';
-    updateGuards(state, 0.016, null, null, null);
-    renderTacticsOverlay(state, choosePerk);
-    setOverlay('tactics');
+    state.detectionState = 'SEARCHING';
+
+    // Player slipped south past crates & fading Velvet Smoke into HIDDEN shadow cover!
+    state.player.x = 326;
+    state.player.y = 266;
+    state.player.angle = -1.5;
+    state.player.crouched = true;
+    state.player.noise = 8;
+
+    // Fading Velvet Smoke veil helping break the Night Captain's sightline
+    state.smokesActive = [
+      { x: 432, y: 214, r: 46, maxR: 52, timer: 2.2, duration: 6.5, alpha: 0.74 },
+    ];
+
+    // Night Captain sweeping vivid orange cone over X LAST SEEN marker in upper velvet hall
+    const g0 = state.guards[0];
+    g0.x = 362; g0.y = 148; g0.angle = -1.16;
+    g0.state = 'SEARCHING'; g0.suspicion = 0.65;
+    state.lastSeen = { x: 362, y: 168 };
+
+    const g1 = state.guards[1];
+    g1.x = 238; g1.y = 536; g1.angle = -1.57;
+    g1.state = 'PATROL';
+
+    const g2 = state.guards[2];
+    g2.x = 768; g2.y = 394; g2.angle = 2.18;
+    g2.state = 'PATROL';
+
+    state.cameras[0].angle = 1.72;
+    evaluateStealthSurface(state, 0);
+    recomputeAllCones();
+    setOverlay('play');
+    hideRibbon();
     syncHud(state);
     return;
   }
 
   if (shot === 'victory') {
-    loadWing(4, true);
+    // SHOT 4: Split ESCAPED · VELVET GHOST ★★★ + 5-Wing Campaign over dimmed Glass Conservatory!
+    loadWing(2, true);
+    state.time = 94;
+    state.score = 12450;
     state.ledgerStolen = true;
-    state.relicStolen = true;
-    state.alerts = 0;
+    state.lootTaken = 4;
+    state.lootTotal = 4;
+    state.wingAlerts = 0;
     state.recoveries = 3;
-    state.relicsTotal = 4;
-    state.score = 18450;
-    state.time = 194;
     state.perks = [PERKS[0], PERKS[1], PERKS[2]];
-    state.wingScores = [
-      { numeral: 'I', shortName: 'Rotunda', score: 3150, time: 36, unseen: true },
-      { numeral: 'II', shortName: 'Archive', score: 3480, time: 41, unseen: true },
-      { numeral: 'III', shortName: 'Conservatory', score: 3720, time: 39, unseen: true },
-      { numeral: 'IV', shortName: 'Gallery', score: 3850, time: 44, unseen: true },
-      { numeral: 'V', shortName: 'Vault', score: 4250, time: 34, unseen: true },
-    ];
+    state.campaign = {
+      0: { time: 58, stars: '★★★', rank: 'GHOST' },
+      1: { time: 84, stars: '★★☆', rank: 'SHADOW' },
+      2: { time: 94, stars: '★★★', rank: 'GHOST' },
+    };
+    state.detectionState = 'HIDDEN';
     state.mode = 'victory';
-    updateGuards(state, 0.016, null, null, null);
-    renderVictoryOverlay(state);
+    recomputeAllCones();
+    renderVictoryOverlay(state, () => {});
     setOverlay('victory');
+    hideRibbon();
     syncHud(state);
   }
 }
 
-// Event Listeners
-document.getElementById('btn-start').onclick = startFromTitle;
-document.getElementById('btn-resume').onclick = () => { state.mode = 'play'; setOverlay('play'); };
-document.getElementById('btn-restart-pause').onclick = () => { loadWing(state.wingIndex, false); state.mode = 'play'; setOverlay('play'); };
-document.getElementById('btn-retry-wing').onclick = () => { loadWing(state.wingIndex, false); state.mode = 'play'; setOverlay('play'); };
-document.getElementById('btn-back-title').onclick = () => {
-  state.mode = 'title';
-  renderWingPicker(state.selectedStartWing, selectWing);
-  setOverlay('title');
-};
-document.getElementById('btn-play-again').onclick = () => {
-  state.selectedStartWing = 0;
-  startFromTitle();
-};
-document.getElementById('btn-next-or-title').onclick = () => {
-  state.mode = 'title';
-  renderWingPicker(state.selectedStartWing, selectWing);
-  setOverlay('title');
-};
-document.getElementById('btn-mute').onclick = () => {
-  sound.unlock();
-  const muted = sound.toggleMute();
-  document.getElementById('btn-mute').textContent = muted ? 'SFX OFF' : 'SFX ON';
-};
-
-function selectWing(idx) {
+// UI Bindings
+function selectTitleWing(idx) {
   state.selectedStartWing = idx;
   loadWing(idx, true);
-  renderWingPicker(idx, selectWing);
+  renderWingPicker(idx, selectTitleWing);
 }
 
+document.getElementById('btn-start').onclick = () => {
+  sound.unlock();
+  loadWing(state.selectedStartWing, true);
+  state.mode = 'play';
+  setOverlay('play');
+  showRibbon(`WING ${state.wing.num}: ${state.wing.title} — STAY UNSEEN`, false);
+};
+document.getElementById('btn-next-wing').onclick = () => { sound.unlock(); openNextWingOrDraft(); };
+document.getElementById('btn-retry-vic').onclick = () => { loadWing(state.wingIndex, false); state.mode = 'play'; setOverlay('play'); };
+document.getElementById('btn-title-vic').onclick = () => { state.mode = 'title'; renderWingPicker(state.wingIndex, selectTitleWing); setOverlay('title'); };
+document.getElementById('btn-resume').onclick = () => { state.mode = 'play'; setOverlay('play'); };
+document.getElementById('btn-restart-pause').onclick = () => { loadWing(state.wingIndex, false); state.mode = 'play'; setOverlay('play'); };
+document.getElementById('btn-retry-go').onclick = () => { loadWing(state.wingIndex, false); state.mode = 'play'; setOverlay('play'); };
+document.getElementById('btn-title-go').onclick = () => { state.mode = 'title'; renderWingPicker(state.wingIndex, selectTitleWing); setOverlay('title'); };
+document.getElementById('btn-mute').onclick = () => {
+  sound.unlock();
+  document.getElementById('btn-mute').textContent = sound.toggleMute() ? 'MUTED' : 'SFX';
+};
+
 canvas.addEventListener('mousemove', (e) => {
-  const rect = canvas.getBoundingClientRect();
-  state.aim.x = ((e.clientX - rect.left) / rect.width) * STAGE_W;
-  state.aim.y = ((e.clientY - rect.top) / rect.height) * STAGE_H;
+  const r = canvas.getBoundingClientRect();
+  state.aim.x = ((e.clientX - r.left) / r.width) * STAGE_W;
+  state.aim.y = ((e.clientY - r.top) / r.height) * STAGE_H;
   state.aim.active = true;
 });
 canvas.addEventListener('mouseleave', () => { state.aim.active = false; });
 canvas.addEventListener('mousedown', (e) => {
   if (e.button !== 0 || state.mode !== 'play') return;
   sound.unlock();
-  const rect = canvas.getBoundingClientRect();
-  const tx = ((e.clientX - rect.left) / rect.width) * STAGE_W;
-  const ty = ((e.clientY - rect.top) / rect.height) * STAGE_H;
-  throwCoin(state, tx, ty, sound, showToast);
+  const r = canvas.getBoundingClientRect();
+  throwCoin(state, ((e.clientX - r.left) / r.width) * STAGE_W, ((e.clientY - r.top) / r.height) * STAGE_H, sound, showRibbon);
   syncHud(state);
 });
 
@@ -377,81 +417,56 @@ window.addEventListener('keydown', (e) => {
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
   input.keys.add(e.code);
 
-  if (e.code === 'KeyM') {
-    sound.unlock();
-    const muted = sound.toggleMute();
-    document.getElementById('btn-mute').textContent = muted ? 'SFX OFF' : 'SFX ON';
-    return;
-  }
-
-  if (state.mode === 'title' && (e.code === 'Space' || e.code === 'Enter')) {
-    startFromTitle();
-    return;
-  }
+  if (e.code === 'KeyM') { sound.unlock(); document.getElementById('btn-mute').textContent = sound.toggleMute() ? 'MUTED' : 'SFX'; return; }
+  if (state.mode === 'title' && (e.code === 'Space' || e.code === 'Enter')) { document.getElementById('btn-start').click(); return; }
+  if (state.mode === 'victory' && e.code === 'Enter') { openNextWingOrDraft(); return; }
+  if ((state.mode === 'victory' || state.mode === 'gameover') && e.code === 'KeyR') { loadWing(state.wingIndex, false); state.mode = 'play'; setOverlay('play'); return; }
   if (state.mode === 'tactics') {
-    if (e.code === 'Digit1' && state.draftOptions[0]) choosePerk(state.draftOptions[0]);
-    if (e.code === 'Digit2' && state.draftOptions[1]) choosePerk(state.draftOptions[1]);
-    if (e.code === 'Digit3' && state.draftOptions[2]) choosePerk(state.draftOptions[2]);
+    const idx = e.code === 'Digit1' ? 0 : e.code === 'Digit2' ? 1 : e.code === 'Digit3' ? 2 : -1;
+    if (idx >= 0 && state.draftOptions[idx]) {
+      state.perks.push(state.draftOptions[idx]);
+      loadWing(state.wingIndex, false);
+      state.mode = 'play';
+      setOverlay('play');
+    }
     return;
   }
-  if (state.mode === 'gameover' && e.code === 'KeyR') {
-    loadWing(state.wingIndex, false);
-    state.mode = 'play';
-    setOverlay('play');
-    return;
-  }
-  if (state.mode === 'paused' && (e.code === 'KeyP' || e.code === 'Escape')) {
-    state.mode = 'play';
-    setOverlay('play');
-    return;
-  }
+  if (state.mode === 'paused' && (e.code === 'KeyP' || e.code === 'Escape')) { state.mode = 'play'; setOverlay('play'); return; }
   if (state.mode !== 'play') return;
 
   sound.unlock();
-  if (e.code === 'KeyP' || e.code === 'Escape') {
-    state.mode = 'paused';
-    setOverlay('paused');
-  } else if (e.code === 'KeyR') {
-    loadWing(state.wingIndex, false);
-    showToast(`WING ${state.wing.numeral} RESTARTED`);
-  } else if (e.code === 'KeyQ') {
-    deploySmoke(state, sound, showToast);
-    syncHud(state);
-  } else if (e.code === 'Space') {
-    const tx = state.aim.active ? state.aim.x : state.player.x + Math.cos(state.player.angle) * 125;
-    const ty = state.aim.active ? state.aim.y : state.player.y + Math.sin(state.player.angle) * 125;
-    throwCoin(state, tx, ty, sound, showToast);
+  if (e.code === 'KeyP' || e.code === 'Escape') { state.mode = 'paused'; setOverlay('paused'); }
+  else if (e.code === 'KeyR') { loadWing(state.wingIndex, false); showRibbon(`WING ${state.wing.num} RESTARTED`, false); }
+  else if (e.code === 'KeyQ') { deploySmoke(state, sound, showRibbon); syncHud(state); }
+  else if (e.code === 'Space') {
+    const tx = state.aim.active ? state.aim.x : state.player.x + Math.cos(state.player.angle) * 130;
+    const ty = state.aim.active ? state.aim.y : state.player.y + Math.sin(state.player.angle) * 130;
+    throwCoin(state, tx, ty, sound, showRibbon);
     syncHud(state);
   } else if (e.code === 'KeyE') {
     const p = state.player;
-    const pickR = 52 + state.mods.lootRangeBonus;
-    if (!state.ledgerStolen && Math.hypot(p.x - state.wing.ledger.x, p.y - state.wing.ledger.y) < pickR) {
-      claimLedger(state, sound, showToast);
-    } else if (state.wing.relic && !state.relicStolen && Math.hypot(p.x - state.wing.relic.x, p.y - state.wing.relic.y) < pickR) {
-      claimRelic(state, sound, showToast);
+    if (!state.ledgerStolen && Math.hypot(p.x - state.wing.ledger.x, p.y - state.wing.ledger.y) < 52 + state.mods.lootRangeBonus) {
+      claimLedger(state, sound, showRibbon);
     } else {
       p.hiding = !p.hiding;
-      showToast(p.hiding ? 'CROUCH-HIDE TOGGLED ON' : 'STANDING STANCE');
+      showRibbon(p.hiding ? 'SHADOW CROUCH LOCKED ON' : 'STANDING STANCE', false, 1.5);
     }
     syncHud(state);
   }
 });
-
-window.addEventListener('keyup', (e) => {
-  input.keys.delete(e.code);
-});
+window.addEventListener('keyup', (e) => { input.keys.delete(e.code); });
 
 // Initialize
-if (shotParam && ['play', 'title', 'tactics', 'victory'].includes(shotParam)) {
+if (shotParam && ['play', 'alarm', 'searching', 'victory'].includes(shotParam)) {
   applyShotPreset(shotParam);
 } else {
   loadWing(0, true);
   state.mode = 'title';
-  renderWingPicker(0, selectWing);
+  renderWingPicker(0, selectTitleWing);
   setOverlay('title');
 }
 
-// Main 60 FPS Loop (freezes exact deterministic moment for ?shot= captures)
+// 60 FPS Main Loop
 let lastTs = performance.now();
 function frame(ts) {
   const dt = Math.min(0.05, (ts - lastTs) / 1000);
@@ -460,21 +475,26 @@ function frame(ts) {
   if (!state.shotMode) {
     if (state.mode === 'play') {
       state.time += dt;
-      updatePlayer(state, input, dt, sound, showToast, handleWingClear);
-      updateGuards(state, dt, sound, handlePlayerHit, showToast);
+      updatePlayer(state, input, dt, sound, showRibbon, handleWingClear);
+      updateSecurity(state, dt, sound, handlePlayerHit, showRibbon);
       updateEffects(state, dt, sound);
-      if (state.toastTimer > 0) {
-        state.toastTimer -= dt;
-        if (state.toastTimer <= 0) document.getElementById('toast-banner').classList.add('hidden');
+      if (state.lockdown) {
+        state.mode = 'gameover';
+        document.getElementById('gameover-reason').textContent = '3 Alarms triggered — Museum Lockdown sealed the exits.';
+        setOverlay('gameover');
+      }
+      if (state.ribbonTimer > 0) {
+        state.ribbonTimer -= dt;
+        if (state.ribbonTimer <= 0) hideRibbon();
       }
       syncHud(state);
     } else if (state.mode === 'title' || state.mode === 'tactics' || state.mode === 'victory') {
-      // Animate patrolling guards in background behind overlays for living atmosphere
-      updateGuards(state, dt * 0.65, null, null, null);
+      state.time += dt * 0.5;
+      updateSecurity(state, dt * 0.5, null, null, null);
     }
   }
 
-  renderStage(ctx, state, state.shotMode ? 2.4 : ts / 1000);
+  renderStage(ctx, state, state.shotMode ? 1.8 : ts / 1000);
   requestAnimationFrame(frame);
 }
 

@@ -1,10 +1,9 @@
-// Velvet Curfew — Painterly 2.5D Art-Deco Overhead Canvas2D Renderer
+// Velvet Curfew v2 — Painterly 2.5D Multi-Room Architectural Stealth Renderer (820x576)
 
 import { STAGE_H, STAGE_W } from './levels.js';
 
 const floorCache = new Map();
 
-// Pre-render rich Art-Deco terrazzo marble, brass inlays, crimson carpet & compass per wing
 function getFloorCanvas(wing) {
   if (floorCache.has(wing.id)) return floorCache.get(wing.id);
   const off = document.createElement('canvas');
@@ -12,74 +11,34 @@ function getFloorCanvas(wing) {
   off.height = STAGE_H;
   const g = off.getContext('2d');
 
-  // Deep midnight terrazzo base
-  g.fillStyle = '#0d1527';
+  // Deep nocturnal stone-indigo base
+  g.fillStyle = '#0c111e';
   g.fillRect(0, 0, STAGE_W, STAGE_H);
 
-  // Subtle alternating slate-indigo marble checkerboard tiles (32px)
-  const tile = 32;
+  // Subtle architectural stone floor grid (28px tiles)
+  const tile = 28;
   for (let y = 16; y < STAGE_H - 16; y += tile) {
     for (let x = 16; x < STAGE_W - 16; x += tile) {
-      const alt = ((x + y) / tile) % 2 === 0;
-      g.fillStyle = alt ? '#111b31' : '#0d1527';
+      const alt = ((Math.floor(x / tile) + Math.floor(y / tile)) % 2) === 0;
+      g.fillStyle = alt ? '#101727' : '#0d1322';
       g.fillRect(x, y, tile, tile);
-      // Faint terrazzo mineral flecks
-      g.fillStyle = alt ? 'rgba(244,234,213,0.03)' : 'rgba(212,168,79,0.025)';
-      g.fillRect(x + ((x * 7 + y) % 22), y + ((y * 5 + x) % 22), 2, 2);
+      g.strokeStyle = 'rgba(255, 255, 255, 0.022)';
+      g.lineWidth = 1;
+      g.strokeRect(x + 0.5, y + 0.5, tile - 1, tile - 1);
     }
   }
 
-  // Thin warm brass architectural floor framing lines
-  g.strokeStyle = 'rgba(212, 168, 79, 0.16)';
-  g.lineWidth = 1;
-  g.strokeRect(26, 26, STAGE_W - 52, STAGE_H - 52);
-  g.strokeRect(32, 32, STAGE_W - 64, STAGE_H - 64);
-
-  // Crimson velvet carpet runners with double gold Art-Deco trim
-  for (const c of wing.carpets) {
+  // Crimson velvet gallery carpets with brass border trim
+  for (const c of wing.carpets || []) {
     const grad = g.createLinearGradient(c.x, c.y, c.x + c.w, c.y + c.h);
-    grad.addColorStop(0, '#5a1927');
-    grad.addColorStop(0.5, '#732133');
-    grad.addColorStop(1, '#4c1421');
+    grad.addColorStop(0, '#3e1522');
+    grad.addColorStop(0.5, '#521b2b');
+    grad.addColorStop(1, '#36111c');
     g.fillStyle = grad;
     g.fillRect(c.x, c.y, c.w, c.h);
-
-    // Subtle woven chevron texture
-    g.strokeStyle = 'rgba(242, 204, 120, 0.08)';
-    g.lineWidth = 1;
-    for (let k = -c.h; k < c.w + c.h; k += 18) {
-      g.beginPath();
-      g.moveTo(c.x + Math.max(0, k), c.y + Math.max(0, -k));
-      g.lineTo(c.x + Math.min(c.w, k + c.h), c.y + Math.min(c.h, c.h - Math.max(0, k + c.h - c.w)));
-      g.stroke();
-    }
-
-    g.strokeStyle = 'rgba(212, 168, 79, 0.62)';
-    g.lineWidth = 1.5;
-    g.strokeRect(c.x + 2, c.y + 2, c.w - 4, c.h - 4);
-    g.strokeStyle = 'rgba(244, 234, 213, 0.22)';
-    g.lineWidth = 0.8;
-    g.strokeRect(c.x + 6, c.y + 6, c.w - 12, c.h - 12);
-  }
-
-  // Grand Brass Meridian Compass Rose etched in rotunda floor
-  if (wing.compass) {
-    const { x, y, r } = wing.compass;
-    g.save();
-    g.translate(x, y);
-    g.strokeStyle = 'rgba(212, 168, 79, 0.34)';
+    g.strokeStyle = 'rgba(212, 168, 79, 0.5)';
     g.lineWidth = 1.4;
-    g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.stroke();
-    g.beginPath(); g.arc(0, 0, r * 0.72, 0, Math.PI * 2); g.stroke();
-    for (let i = 0; i < 8; i++) {
-      const a = (i * Math.PI) / 4;
-      const outer = i % 2 === 0 ? r : r * 0.78;
-      g.beginPath();
-      g.moveTo(0, 0);
-      g.lineTo(Math.cos(a) * outer, Math.sin(a) * outer);
-      g.stroke();
-    }
-    g.restore();
+    g.strokeRect(c.x + 2, c.y + 2, c.w - 4, c.h - 4);
   }
 
   floorCache.set(wing.id, off);
@@ -90,455 +49,483 @@ export function renderStage(ctx, state, nowSec) {
   const w = state.wing;
   ctx.clearRect(0, 0, STAGE_W, STAGE_H);
 
-  // 1. Cached Art-Deco Floor
+  // 1. Pre-rendered stone & velvet museum floor
   ctx.drawImage(getFloorCanvas(w), 0, 0);
 
-  // 2. Deep Indigo Safe-Shadow Pockets (unmistakable cool cyan-rimmed stealth sanctuaries)
-  for (const s of w.shadows) {
-    ctx.save();
-    ctx.fillStyle = 'rgba(4, 9, 22, 0.66)';
-    ctx.fillRect(s.x, s.y, s.w, s.h);
-    // Subtle cool diagonal stealth hatching
-    ctx.beginPath();
-    ctx.rect(s.x, s.y, s.w, s.h);
-    ctx.clip();
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.08)';
-    ctx.lineWidth = 1;
-    for (let d = -s.h; d < s.w + s.h; d += 12) {
-      ctx.beginPath();
-      ctx.moveTo(s.x + d, s.y);
-      ctx.lineTo(s.x + d - s.h, s.y + s.h);
-      ctx.stroke();
-    }
-    ctx.restore();
-
-    ctx.save();
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.36)';
-    ctx.setLineDash([5, 5]);
-    ctx.lineWidth = 1.1;
-    ctx.strokeRect(s.x + 1, s.y + 1, s.w - 2, s.h - 2);
-    ctx.restore();
-  }
-
-  // 3. Warm Golden Chandelier Light Pools (clear visual contrast vs shadows)
+  // 2. Warm Chandelier Light Pools (bright warm amber pools contrasted against dark midnight corners)
   for (const l of w.lights) {
-    const pulse = 1 + Math.sin(nowSec * 1.9 + l.x * 0.03) * 0.025;
-    const rad = l.r * pulse;
+    const rad = l.r * (1 + Math.sin(nowSec * 1.8 + l.x * 0.02) * 0.018);
     const grad = ctx.createRadialGradient(l.x, l.y, 4, l.x, l.y, rad);
-    grad.addColorStop(0, 'rgba(255, 226, 148, 0.34)');
-    grad.addColorStop(0.52, 'rgba(212, 168, 79, 0.16)');
-    grad.addColorStop(1, 'rgba(212, 168, 79, 0)');
+    grad.addColorStop(0, 'rgba(255, 232, 170, 0.44)');
+    grad.addColorStop(0.45, 'rgba(220, 178, 108, 0.22)');
+    grad.addColorStop(0.82, 'rgba(160, 124, 72, 0.06)');
+    grad.addColorStop(1, 'rgba(12, 17, 30, 0)');
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.arc(l.x, l.y, rad, 0, Math.PI * 2);
     ctx.fill();
-
-    // Subtle Art-Deco chandelier ring halo & brass sunburst center
-    ctx.strokeStyle = 'rgba(242, 204, 120, 0.24)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(l.x, l.y, rad * 0.62, 0, Math.PI * 2);
-    ctx.stroke();
-
-    ctx.fillStyle = 'rgba(254, 240, 138, 0.65)';
-    ctx.beginPath();
-    ctx.arc(l.x, l.y, 3.2, 0, Math.PI * 2);
-    ctx.fill();
   }
 
-  // Subtle emerald-gold extraction guide from secured ledger toward open Roof Exit
-  if (state.ledgerStolen) {
-    ctx.save();
-    ctx.strokeStyle = 'rgba(74, 222, 128, 0.28)';
-    ctx.setLineDash([6, 8]);
-    ctx.lineWidth = 1.6;
-    ctx.beginPath();
-    ctx.moveTo(w.ledger.x, w.ledger.y);
-    ctx.lineTo(w.exit.x, w.exit.y);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  // Optional Amber Monocle perk: faint patrol routes
-  if (state.mods.showRoutes) {
-    ctx.save();
-    ctx.strokeStyle = 'rgba(212, 168, 79, 0.22)';
-    ctx.setLineDash([4, 6]);
+  // 3. Doorways (warm brass/wood thresholds inside wall openings)
+  for (const d of w.doorways || []) {
+    ctx.fillStyle = '#472c1e';
+    ctx.fillRect(d.x, d.y, d.w, d.h);
+    ctx.strokeStyle = '#d4a84f';
     ctx.lineWidth = 1.2;
-    for (const g of state.guards) {
-      ctx.beginPath();
-      g.waypoints.forEach((wp, i) => (i === 0 ? ctx.moveTo(wp.x, wp.y) : ctx.lineTo(wp.x, wp.y)));
-      ctx.closePath();
-      ctx.stroke();
-    }
-    ctx.restore();
+    ctx.strokeRect(d.x + 0.5, d.y + 0.5, d.w - 1, d.h - 1);
   }
 
-  // 4. Dual-State True Raycast Vision Cones (Drawn BEFORE 3D obstacles so pillars slice them cleanly!)
-  for (const g of state.guards) {
-    drawVisionCone(ctx, g);
+  // 4. Low Cover (Emerald Conservatory Planters & Velvet Benches — drawn under vision cones!)
+  for (const o of w.obstacles) {
+    if (o.kind === 'low') drawLowCover(ctx, o);
   }
 
-  // 5. Objectives: Vault Ledger Pedestal, Gilded Relic & Glowing Emerald Roof Exit
-  drawLedgerAndRelic(ctx, state, nowSec);
-  drawExitPortal(ctx, state, nowSec);
+  // 5. Raycast Vision Cones — Brass-Eye Cameras (Teal) + Guards (Steel / Gold / Orange / Crimson)
+  for (const cam of state.cameras) drawCameraCone(ctx, cam);
+  for (const g of state.guards) drawGuardCone(ctx, g);
 
-  // 6. Concentric Dashed Acoustic Ripples (Footsteps & Brass Coin Lures)
-  for (const rp of state.ripples) {
-    ctx.save();
-    const isCoin = rp.kind === 'coin';
-    const isLoot = rp.kind === 'loot';
-    ctx.strokeStyle = isCoin
-      ? `rgba(242, 204, 120, ${rp.alpha})`
-      : isLoot
-      ? `rgba(34, 197, 94, ${rp.alpha})`
-      : `rgba(56, 189, 248, ${rp.alpha * 0.85})`;
-    ctx.lineWidth = isCoin ? 2 : 1.4;
-    ctx.setLineDash(isCoin ? [7, 5] : [4, 5]);
-    ctx.beginPath();
-    ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2);
-    ctx.stroke();
-    if (isCoin) {
-      ctx.setLineDash([]);
-      ctx.fillStyle = `rgba(242, 204, 120, ${rp.alpha})`;
-      ctx.beginPath();
-      ctx.arc(rp.x, rp.y, 4, 0, Math.PI * 2);
-      ctx.fill();
-      if (rp.label) {
-        ctx.font = '700 10px ui-monospace, monospace';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = `rgba(254, 240, 138, ${Math.min(1, rp.alpha + 0.15)})`;
-        ctx.fillText(rp.label, rp.x, rp.y - 10);
-      }
-    }
-    ctx.restore();
+  // 6. Pulsing Crimson Laser Tripwires
+  for (const tw of state.tripwires) drawTripwire(ctx, tw, nowSec);
+
+  // 7. Tall 3D-Extruded Architectural Walls, Glass Partitions, Crates & Pillars (slice cones cleanly!)
+  for (const o of w.obstacles) {
+    if (o.kind !== 'low') drawTallObstacle(ctx, o);
   }
 
-  // Coin throw arc preview when aiming in active play
+  // 8. Ceiling Chandelier Bulbs (crisp glowing ivory-brass nodes)
+  for (const l of w.lights) {
+    ctx.fillStyle = '#181410';
+    ctx.beginPath(); ctx.arc(l.x, l.y, 5.8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fef3c7';
+    ctx.beginPath(); ctx.arc(l.x, l.y, 3.6, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#d4a84f';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(l.x, l.y, 5.8, 0, Math.PI * 2); ctx.stroke();
+  }
+
+  // 9. Bonus Gold Loot Stacks, Vault Ledger Diamond & Emerald Exit Portal
+  drawLootAndObjectives(ctx, state, nowSec);
+
+  // 10. Active Velvet Smoke Clouds
+  for (const sm of state.smokesActive) drawSmokeCloud(ctx, sm, nowSec);
+
+  // 11. Diegetic Stealth Callouts (Alarm waves & rally links, Last Seen X, Coin ripples & dashed line)
+  drawDiegeticCallouts(ctx, state, nowSec);
+
+  // Aim arc preview during live play
   if (state.mode === 'play' && !state.shotMode && state.aim.active && state.coins > 0) {
     drawAimArc(ctx, state);
   }
 
-  // 7. 3D-Extruded Walls, Marble Pillars, Bookshelves, Banquettes & Vitrines
-  drawObstacles3D(ctx, w.obstacles);
-
-  // 8. Active Velvet Smoke Clouds
-  for (const sm of state.smokesActive) {
-    drawSmokeCloud(ctx, sm, nowSec);
-  }
-
-  // 9. Flying Brass Coins
+  // 12. Flying Brass Coins
   for (const c of state.coinsInFlight) {
     const u = Math.min(1, c.t / c.dur);
     const x = c.sx + (c.tx - c.sx) * u;
-    const y = c.sy + (c.ty - c.sy) * u - Math.sin(u * Math.PI) * 34;
+    const y = c.sy + (c.ty - c.sy) * u - Math.sin(u * Math.PI) * 32;
     ctx.fillStyle = '#fef08a';
-    ctx.beginPath();
-    ctx.arc(x, y, 4.2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#b45309';
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, 4.2, 0, Math.PI * 2); ctx.fill();
   }
 
-  // 10. Infiltrator & Museum Guards
+  // 13. Brass-Eye Camera Mounts, Infiltrator & Guards
+  for (const cam of state.cameras) drawCameraNode(ctx, cam);
   drawInfiltrator(ctx, state, nowSec);
-  for (const g of state.guards) {
-    drawGuard(ctx, g, nowSec);
-  }
+  for (const g of state.guards) drawGuard(ctx, g, nowSec);
 
-  // 11. Sparkle Particles
+  // 14. Sparkle Particles
   for (const pt of state.particles) {
     ctx.globalAlpha = Math.max(0, pt.life / pt.maxLife);
     ctx.fillStyle = pt.color;
-    ctx.beginPath();
-    ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2); ctx.fill();
   }
   ctx.globalAlpha = 1;
-
-  // 12. Subtle Noir Edge Vignette framing the canvas
-  const vig = ctx.createRadialGradient(STAGE_W / 2, STAGE_H / 2, STAGE_H * 0.36, STAGE_W / 2, STAGE_H / 2, STAGE_W * 0.64);
-  vig.addColorStop(0, 'rgba(0,0,0,0)');
-  vig.addColorStop(1, 'rgba(3, 6, 14, 0.44)');
-  ctx.fillStyle = vig;
-  ctx.fillRect(0, 0, STAGE_W, STAGE_H);
 }
 
-function drawVisionCone(ctx, g) {
-  const poly = g.visionPoly;
-  if (!poly || poly.length < 3) return;
-  const isAlert = g.state === 'ALERT';
-  const isSusp = g.state === 'SUSPICIOUS' || g.state === 'SEARCH' || g.suspicion > 0.2;
+function drawLowCover(ctx, o) {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+  ctx.fillRect(o.x + 3, o.y + 4, o.w, o.h);
+  // Lush botanical planter / velvet low cover segmented into 24px cells
+  ctx.fillStyle = '#143c2c';
+  ctx.fillRect(o.x, o.y, o.w, o.h);
+  const cols = Math.max(1, Math.round(o.w / 24));
+  const rows = Math.max(1, Math.round(o.h / 24));
+  const cw = o.w / cols, ch = o.h / rows;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const bx = o.x + c * cw + 2.5, by = o.y + r * ch + 2.5;
+      ctx.fillStyle = '#246b48';
+      ctx.fillRect(bx, by, cw - 5, ch - 5);
+      // Tiny pale botanical blossoms
+      ctx.fillStyle = '#86efac';
+      ctx.beginPath(); ctx.arc(bx + cw * 0.3, by + ch * 0.36, 1.8, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(bx + cw * 0.66, by + ch * 0.56, 1.6, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.strokeStyle = 'rgba(74, 222, 128, 0.45)';
+  ctx.lineWidth = 1.2;
+  ctx.strokeRect(o.x + 0.5, o.y + 0.5, o.w - 1, o.h - 1);
+}
 
+function drawTallObstacle(ctx, o) {
+  // Grounded drop shadow
+  ctx.fillStyle = 'rgba(2, 5, 14, 0.58)';
+  ctx.fillRect(o.x + 5, o.y + 7, o.w, o.h);
+
+  if (o.kind === 'wall') {
+    // Architectural 3D-beveled slate-steel wall with clean top lip
+    ctx.fillStyle = '#33415c';
+    ctx.fillRect(o.x, o.y, o.w, o.h);
+    ctx.fillStyle = '#536587';
+    ctx.fillRect(o.x, o.y, o.w, Math.min(o.h, 5));
+    ctx.fillStyle = '#475878';
+    ctx.fillRect(o.x + 2, o.y + 2, Math.max(0, o.w - 4), Math.max(0, o.h - 7));
+    ctx.strokeStyle = '#1b2438';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(o.x + 0.5, o.y + 0.5, o.w - 1, o.h - 1);
+    return;
+  }
+
+  if (o.kind === 'glass') {
+    // Glasshouse conservatory divider panes (transparent to sight!)
+    ctx.fillStyle = 'rgba(30, 52, 78, 0.65)';
+    ctx.fillRect(o.x, o.y, o.w, o.h);
+    ctx.strokeStyle = 'rgba(148, 197, 232, 0.52)';
+    ctx.lineWidth = 1.2;
+    ctx.strokeRect(o.x + 0.5, o.y + 0.5, o.w - 1, o.h - 1);
+    const horizontal = o.w > o.h;
+    const step = 18;
+    const count = Math.max(1, Math.floor((horizontal ? o.w : o.h) / step));
+    ctx.strokeStyle = 'rgba(186, 230, 253, 0.34)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < count; i++) {
+      const px = horizontal ? o.x + i * step : o.x;
+      const py = horizontal ? o.y : o.y + i * step;
+      const pw = horizontal ? step : o.w;
+      const ph = horizontal ? o.h : step;
+      ctx.strokeRect(px + 1, py + 1, pw - 2, ph - 2);
+      ctx.beginPath();
+      ctx.moveTo(px + 4, py + ph - 4);
+      ctx.lineTo(px + pw - 4, py + 4);
+      ctx.stroke();
+    }
+    return;
+  }
+
+  // Tall Mahogany Crate / Marble Pillar (blocks sightlines completely!)
+  const isCrate = o.kind === 'crate';
+  const cols = isCrate ? Math.max(1, Math.round(o.w / 26)) : 1;
+  const rows = isCrate ? Math.max(1, Math.round(o.h / 26)) : 1;
+  const cw = o.w / cols, ch = o.h / rows;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const bx = o.x + c * cw, by = o.y + r * ch;
+      ctx.fillStyle = isCrate ? '#4f2e1d' : '#253453';
+      ctx.fillRect(bx, by, cw, ch);
+      ctx.fillStyle = isCrate ? '#6e4228' : '#334870';
+      ctx.fillRect(bx + 2, by + 2, cw - 4, ch - 6);
+      if (isCrate) {
+        ctx.strokeStyle = '#382012';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(bx + 3, by + 3); ctx.lineTo(bx + cw - 3, by + ch - 5);
+        ctx.moveTo(bx + cw - 3, by + 3); ctx.lineTo(bx + 3, by + ch - 5);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = isCrate ? '#a66d42' : '#d4a84f';
+      ctx.lineWidth = 1.2;
+      ctx.strokeRect(bx + 0.5, by + 0.5, cw - 1, ch - 1);
+    }
+  }
+}
+
+function drawCameraCone(ctx, cam) {
+  const poly = cam.visionPoly;
+  if (!poly || poly.length < 3) return;
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(poly[0].x, poly[0].y);
   for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x, poly[i].y);
   ctx.closePath();
 
-  const grad = ctx.createRadialGradient(g.x, g.y, 8, g.x, g.y, g.spec.visionRange);
-  if (isAlert) {
+  const grad = ctx.createRadialGradient(cam.x, cam.y, 4, cam.x, cam.y, cam.range);
+  grad.addColorStop(0, cam.alerting ? 'rgba(239, 68, 68, 0.5)' : 'rgba(45, 212, 191, 0.44)');
+  grad.addColorStop(0.65, cam.alerting ? 'rgba(239, 68, 68, 0.22)' : 'rgba(45, 212, 191, 0.18)');
+  grad.addColorStop(1, 'rgba(45, 212, 191, 0.04)');
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.strokeStyle = cam.alerting ? 'rgba(252, 165, 165, 0.85)' : 'rgba(94, 234, 212, 0.72)';
+  ctx.lineWidth = 1.4;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawGuardCone(ctx, g) {
+  const poly = g.visionPoly;
+  if (!poly || poly.length < 3) return;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(poly[0].x, poly[0].y);
+  for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x, poly[i].y);
+  ctx.closePath();
+
+  const grad = ctx.createRadialGradient(g.x, g.y, 6, g.x, g.y, g.spec.visionRange);
+  let stroke = 'rgba(186, 212, 240, 0.45)';
+  if (g.state === 'ALARM') {
     grad.addColorStop(0, 'rgba(239, 68, 68, 0.56)');
-    grad.addColorStop(0.6, 'rgba(220, 38, 38, 0.3)');
+    grad.addColorStop(0.65, 'rgba(220, 38, 38, 0.28)');
     grad.addColorStop(1, 'rgba(185, 28, 28, 0.08)');
-  } else if (isSusp) {
-    grad.addColorStop(0, 'rgba(249, 115, 22, 0.52)');
-    grad.addColorStop(0.58, 'rgba(234, 88, 12, 0.27)');
-    grad.addColorStop(1, 'rgba(194, 65, 12, 0.07)');
+    stroke = 'rgba(252, 165, 165, 0.88)';
+  } else if (g.state === 'SEARCHING') {
+    grad.addColorStop(0, 'rgba(251, 146, 60, 0.56)');
+    grad.addColorStop(0.65, 'rgba(234, 88, 12, 0.26)');
+    grad.addColorStop(1, 'rgba(194, 65, 12, 0.06)');
+    stroke = 'rgba(253, 186, 116, 0.85)';
+  } else if (g.state === 'SUSPICIOUS') {
+    grad.addColorStop(0, 'rgba(250, 204, 21, 0.48)');
+    grad.addColorStop(0.65, 'rgba(234, 179, 8, 0.24)');
+    grad.addColorStop(1, 'rgba(202, 138, 4, 0.06)');
+    stroke = 'rgba(254, 240, 138, 0.85)';
   } else {
-    grad.addColorStop(0, 'rgba(242, 204, 120, 0.38)');
-    grad.addColorStop(0.6, 'rgba(212, 168, 79, 0.19)');
-    grad.addColorStop(1, 'rgba(212, 168, 79, 0.04)');
+    grad.addColorStop(0, 'rgba(165, 198, 232, 0.34)');
+    grad.addColorStop(0.65, 'rgba(128, 164, 204, 0.16)');
+    grad.addColorStop(1, 'rgba(100, 134, 176, 0.04)');
   }
   ctx.fillStyle = grad;
   ctx.fill();
-
-  ctx.strokeStyle = isAlert
-    ? 'rgba(252, 165, 165, 0.78)'
-    : isSusp
-    ? 'rgba(253, 186, 116, 0.72)'
-    : 'rgba(242, 204, 120, 0.44)';
-  ctx.lineWidth = isAlert || isSusp ? 1.6 : 1.1;
+  ctx.strokeStyle = stroke;
+  ctx.lineWidth = g.state === 'PATROL' ? 1.2 : 1.7;
   ctx.stroke();
   ctx.restore();
 }
 
-function drawObstacles3D(ctx, obstacles) {
-  const depth = 11;
-  for (const o of obstacles) {
-    // Grounded drop shadow
-    ctx.fillStyle = 'rgba(2, 5, 14, 0.58)';
-    ctx.fillRect(o.x + 6, o.y + 8, o.w, o.h);
+function drawTripwire(ctx, tw, nowSec) {
+  ctx.save();
+  if (tw.active) {
+    const pulse = 0.78 + 0.22 * Math.sin(nowSec * 12);
+    ctx.strokeStyle = `rgba(239, 68, 68, ${0.35 * pulse})`;
+    ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(tw.x1, tw.y1); ctx.lineTo(tw.x2, tw.y2); ctx.stroke();
 
-    if (o.kind === 'wall') {
-      ctx.fillStyle = '#192338';
-      ctx.fillRect(o.x, o.y, o.w, o.h);
-      ctx.strokeStyle = 'rgba(212, 168, 79, 0.35)';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(o.x + 0.5, o.y + 0.5, o.w - 1, o.h - 1);
-      continue;
-    }
-
-    // 3D front extrusion face (gives crisp 2.5D architectural weight)
-    const palettes = {
-      pillar: { front: '#1b2640', top: '#2b3b5e', rim: '#d4a84f', inner: '#394c76' },
-      shelf: { front: '#2a1a18', top: '#4a2b24', rim: '#d4a84f', inner: '#623a2f' },
-      banquette: { front: '#4a1423', top: '#7a2237', rim: '#e6bd68', inner: '#932c45' },
-      vitrine: { front: '#152d3c', top: '#1e4257', rim: '#7dd3fc', inner: '#285873' },
-    };
-    const pal = palettes[o.kind] || palettes.pillar;
-
-    // Front vertical elevation
-    ctx.fillStyle = pal.front;
-    ctx.fillRect(o.x, o.y + o.h - depth, o.w, depth);
-
-    // Top bevel face lifted up slightly
-    ctx.fillStyle = pal.top;
-    ctx.fillRect(o.x, o.y - 3, o.w, o.h - depth + 4);
-
-    // Inner Deco inset panel
-    if (o.w > 22 && o.h > 22) {
-      ctx.fillStyle = pal.inner;
-      ctx.fillRect(o.x + 5, o.y + 2, o.w - 10, Math.max(4, o.h - depth - 6));
-    }
-
-    // Fluted Deco corner studs for pillars
-    if (o.kind === 'pillar') {
-      ctx.fillStyle = 'rgba(242, 204, 120, 0.55)';
-      ctx.fillRect(o.x + 3, o.y, 4, 4);
-      ctx.fillRect(o.x + o.w - 7, o.y, 4, 4);
-      ctx.fillRect(o.x + 3, o.y + o.h - depth - 4, 4, 4);
-      ctx.fillRect(o.x + o.w - 7, o.y + o.h - depth - 4, 4, 4);
-    }
-
-    // Warm brass top bevel outline
-    ctx.strokeStyle = pal.rim;
-    ctx.lineWidth = 1.4;
-    ctx.strokeRect(o.x + 0.5, o.y - 2.5, o.w - 1, o.h - depth + 3);
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
-    ctx.strokeRect(o.x + 0.5, o.y + o.h - depth + 0.5, o.w - 1, depth - 1);
+    ctx.strokeStyle = `rgba(254, 202, 202, ${0.95 * pulse})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(tw.x1, tw.y1); ctx.lineTo(tw.x2, tw.y2); ctx.stroke();
+  } else {
+    ctx.strokeStyle = 'rgba(239, 68, 68, 0.22)';
+    ctx.setLineDash([4, 6]);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(tw.x1, tw.y1); ctx.lineTo(tw.x2, tw.y2); ctx.stroke();
+    ctx.setLineDash([]);
   }
+  for (const [ex, ey] of [[tw.x1, tw.y1], [tw.x2, tw.y2]]) {
+    ctx.fillStyle = '#1e293b';
+    ctx.beginPath(); ctx.arc(ex, ey, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = tw.active ? '#ef4444' : '#64748b';
+    ctx.beginPath(); ctx.arc(ex, ey, 2.8, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
 }
 
-function drawLedgerAndRelic(ctx, state, nowSec) {
-  const L = state.wing.ledger;
-  const pulse = 0.5 + 0.5 * Math.sin(nowSec * 3.8);
+function drawLootAndObjectives(ctx, state, nowSec) {
+  // Bonus gold coin stacks
+  for (const it of state.lootItems) {
+    if (it.taken) continue;
+    ctx.save();
+    ctx.translate(it.x, it.y);
+    ctx.fillStyle = '#d97706';
+    ctx.beginPath(); ctx.ellipse(0, 3, 6.5, 3.2, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath(); ctx.ellipse(0, 0, 6.5, 3.2, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fef08a';
+    ctx.beginPath(); ctx.ellipse(0, -3, 6.2, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
 
-  // Central Vault Pedestal
+  // Vault Ledger gleaming diamond objective
+  const L = state.wing.ledger;
+  if (!state.ledgerStolen) {
+    const pulse = 0.5 + 0.5 * Math.sin(nowSec * 4.2);
+    ctx.save();
+    ctx.translate(L.x, L.y);
+    const gl = ctx.createRadialGradient(0, 0, 2, 0, 0, 26 + pulse * 6);
+    gl.addColorStop(0, 'rgba(250, 204, 21, 0.58)');
+    gl.addColorStop(1, 'rgba(250, 204, 21, 0)');
+    ctx.fillStyle = gl;
+    ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI * 2); ctx.fill();
+
+    ctx.rotate(Math.PI / 4);
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(-8, -8, 16, 16);
+    ctx.strokeStyle = '#fef9c3';
+    ctx.lineWidth = 1.6;
+    ctx.strokeRect(-8, -8, 16, 16);
+    ctx.restore();
+  }
+
+  // Glowing Emerald Roof Exit Portal
+  const ex = state.wing.exit;
+  const open = state.ledgerStolen;
   ctx.save();
-  ctx.translate(L.x, L.y);
-  ctx.fillStyle = '#18243d';
-  ctx.strokeStyle = '#d4a84f';
-  ctx.lineWidth = 1.6;
+  ctx.translate(ex.x, ex.y);
+  const eg = ctx.createRadialGradient(0, 0, 3, 0, 0, 34);
+  eg.addColorStop(0, open ? 'rgba(34, 197, 94, 0.55)' : 'rgba(34, 197, 94, 0.28)');
+  eg.addColorStop(1, 'rgba(34, 197, 94, 0)');
+  ctx.fillStyle = eg;
+  ctx.beginPath(); ctx.arc(0, 0, 34, 0, Math.PI * 2); ctx.fill();
+
+  ctx.fillStyle = open ? 'rgba(22, 163, 74, 0.36)' : 'rgba(16, 60, 40, 0.65)';
+  ctx.strokeStyle = '#4ade80';
+  ctx.lineWidth = 2.2;
   ctx.fillRect(-16, -16, 32, 32);
   ctx.strokeRect(-16, -16, 32, 32);
 
-  if (!state.ledgerStolen) {
-    const glow = ctx.createRadialGradient(0, 0, 2, 0, 0, 28 + pulse * 6);
-    glow.addColorStop(0, 'rgba(250, 204, 21, 0.55)');
-    glow.addColorStop(1, 'rgba(250, 204, 21, 0)');
-    ctx.fillStyle = glow;
-    ctx.beginPath(); ctx.arc(0, 0, 32, 0, Math.PI * 2); ctx.fill();
-
-    // Golden Vault Ledger book
-    ctx.fillStyle = '#f2cc78';
-    ctx.fillRect(-8, -10, 16, 20);
-    ctx.fillStyle = '#8a1c31';
-    ctx.fillRect(-6, -8, 12, 16);
-    ctx.strokeStyle = '#fef08a';
-    ctx.lineWidth = 1.3;
-    ctx.strokeRect(-8, -10, 16, 20);
-
-    drawWorldTag(ctx, 0, -24, 'LEDGER', '#f2cc78', 'rgba(11,17,32,0.88)', false);
-  } else {
-    // Open empty pedestal after stealing
-    ctx.strokeStyle = 'rgba(34, 197, 94, 0.65)';
-    ctx.setLineDash([3, 3]);
-    ctx.strokeRect(-10, -10, 20, 20);
-    ctx.setLineDash([]);
-    drawWorldTag(ctx, 0, -26, 'LEDGER SECURED', '#4ade80', 'rgba(11,17,32,0.9)', false);
-  }
-  ctx.restore();
-
-  // Optional Bonus Gilded Relic
-  const R = state.wing.relic;
-  if (R && !state.relicStolen) {
-    ctx.save();
-    ctx.translate(R.x, R.y);
-    const rg = ctx.createRadialGradient(0, 0, 2, 0, 0, 24);
-    rg.addColorStop(0, 'rgba(56, 189, 248, 0.45)');
-    rg.addColorStop(1, 'rgba(56, 189, 248, 0)');
-    ctx.fillStyle = rg;
-    ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI * 2); ctx.fill();
-
-    ctx.rotate(Math.PI / 4);
-    ctx.fillStyle = '#f2cc78';
-    ctx.fillRect(-7, -7, 14, 14);
-    ctx.strokeStyle = '#fef9c3';
-    ctx.lineWidth = 1.3;
-    ctx.strokeRect(-7, -7, 14, 14);
-    ctx.rotate(-Math.PI / 4);
-    drawWorldTag(ctx, 0, 22, 'RELIC +600', '#7dd3fc', 'rgba(11,17,32,0.9)', false);
-    ctx.restore();
-  }
-}
-
-function drawExitPortal(ctx, state, nowSec) {
-  const ex = state.wing.exit;
-  const open = state.ledgerStolen;
-  const pulse = 0.5 + 0.5 * Math.sin(nowSec * 4.2);
-
-  ctx.save();
-  ctx.translate(ex.x, ex.y);
-  const glow = ctx.createRadialGradient(0, 0, 4, 0, 0, ex.r + 18 + pulse * 6);
-  glow.addColorStop(0, open ? 'rgba(34, 197, 94, 0.58)' : 'rgba(148, 163, 184, 0.22)');
-  glow.addColorStop(1, 'rgba(34, 197, 94, 0)');
-  ctx.fillStyle = glow;
-  ctx.beginPath(); ctx.arc(0, 0, ex.r + 22, 0, Math.PI * 2); ctx.fill();
-
-  // Art-Deco Emerald Archway Octagon
-  ctx.fillStyle = open ? 'rgba(16, 185, 129, 0.26)' : 'rgba(30, 41, 59, 0.5)';
-  ctx.strokeStyle = open ? '#4ade80' : '#64748b';
-  ctx.lineWidth = open ? 2.4 : 1.5;
+  // Play/Exit triangle glyph
+  ctx.fillStyle = '#86efac';
   ctx.beginPath();
-  for (let i = 0; i < 8; i++) {
-    const a = (i * Math.PI) / 4 + Math.PI / 8;
-    const rx = Math.cos(a) * ex.r;
-    const ry = Math.sin(a) * ex.r;
-    i === 0 ? ctx.moveTo(rx, ry) : ctx.lineTo(rx, ry);
-  }
-  ctx.closePath();
+  ctx.moveTo(-5, -7); ctx.lineTo(8, 0); ctx.lineTo(-5, 7); ctx.closePath();
   ctx.fill();
-  ctx.stroke();
 
-  // Chevron exit arrow
-  ctx.fillStyle = open ? '#bbf7d0' : '#94a3b8';
-  ctx.font = '700 11px Georgia, serif';
+  ctx.font = '800 10px system-ui, sans-serif';
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('EXIT', 0, 1);
-
-  drawWorldTag(ctx, 0, ex.r + 14, open ? 'EXIT OPEN' : 'LOCKED', open ? '#4ade80' : '#94a3b8', 'rgba(11,17,32,0.92)', false);
+  ctx.fillStyle = '#dcfce7';
+  ctx.fillText('EXIT', 0, -21);
   ctx.restore();
 }
 
 function drawSmokeCloud(ctx, sm, nowSec) {
   ctx.save();
   ctx.globalAlpha = sm.alpha;
-  const lobes = [
+  const puffs = [
     { ox: 0, oy: 0, s: 1.0 },
     { ox: Math.cos(nowSec * 0.9) * 14, oy: Math.sin(nowSec * 0.8) * 10, s: 0.72 },
-    { ox: -15, oy: 9, s: 0.68 },
-    { ox: 14, oy: -10, s: 0.64 },
+    { ox: -14, oy: 8, s: 0.68 },
+    { ox: 12, oy: -10, s: 0.64 },
   ];
-  for (const lb of lobes) {
-    const r = sm.r * lb.s;
-    const g = ctx.createRadialGradient(sm.x + lb.ox, sm.y + lb.oy, 4, sm.x + lb.ox, sm.y + lb.oy, r);
-    g.addColorStop(0, 'rgba(67, 45, 110, 0.88)');
-    g.addColorStop(0.6, 'rgba(34, 24, 66, 0.72)');
-    g.addColorStop(1, 'rgba(19, 14, 42, 0)');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(sm.x + lb.ox, sm.y + lb.oy, r, 0, Math.PI * 2);
-    ctx.fill();
+  for (const pf of puffs) {
+    const r = sm.r * pf.s;
+    const gr = ctx.createRadialGradient(sm.x + pf.ox, sm.y + pf.oy, 3, sm.x + pf.ox, sm.y + pf.oy, r);
+    gr.addColorStop(0, 'rgba(76, 52, 126, 0.86)');
+    gr.addColorStop(0.62, 'rgba(38, 26, 74, 0.7)');
+    gr.addColorStop(1, 'rgba(20, 14, 44, 0)');
+    ctx.fillStyle = gr;
+    ctx.beginPath(); ctx.arc(sm.x + pf.ox, sm.y + pf.oy, r, 0, Math.PI * 2); ctx.fill();
   }
-  ctx.strokeStyle = 'rgba(196, 181, 253, 0.42)';
-  ctx.setLineDash([5, 5]);
+  ctx.strokeStyle = 'rgba(196, 181, 253, 0.45)';
+  ctx.setLineDash([4, 5]);
   ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  ctx.arc(sm.x, sm.y, sm.r * 0.86, 0, Math.PI * 2);
-  ctx.stroke();
+  ctx.beginPath(); ctx.arc(sm.x, sm.y, sm.r * 0.86, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+}
+
+function drawDiegeticCallouts(ctx, state, nowSec) {
+  // 1. Coin Acoustic Ripples + Dashed Guard-to-Coin Line + "WHAT WAS THAT?"
+  for (const g of state.guards) {
+    if (g.lurePos) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(250, 204, 21, 0.82)';
+      ctx.setLineDash([5, 5]);
+      ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(g.x, g.y); ctx.lineTo(g.lurePos.x, g.lurePos.y); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  for (const rp of state.ripples) {
+    ctx.save();
+    const isCoin = rp.kind === 'coin';
+    ctx.strokeStyle = isCoin ? `rgba(250, 204, 21, ${rp.alpha})` : `rgba(56, 189, 248, ${rp.alpha * 0.75})`;
+    ctx.lineWidth = isCoin ? 2.1 : 1.3;
+    if (!isCoin) ctx.setLineDash([4, 5]);
+    ctx.beginPath(); ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2); ctx.stroke();
+    if (isCoin) {
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath(); ctx.arc(rp.x, rp.y, 4, 0, Math.PI * 2); ctx.fill();
+      if (rp.label) drawTag(ctx, rp.x, rp.y - 18, rp.label, '#fef08a', 'rgba(11, 17, 32, 0.92)', '#d4a84f');
+    }
+    ctx.restore();
+  }
+
+  // 2. Live Alarm Shockwaves + Rally Lines + "ANSWERING ALARM"
+  if (state.alarmOrigin) {
+    const { x, y } = state.alarmOrigin;
+    ctx.save();
+    for (let k = 0; k < 3; k++) {
+      const r = 34 + k * 42 + ((nowSec * 36) % 24);
+      ctx.strokeStyle = `rgba(239, 68, 68, ${Math.max(0.15, 0.65 - k * 0.18)})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(253, 224, 71, 0.8)';
+    ctx.setLineDash([6, 5]);
+    ctx.lineWidth = 1.6;
+    for (const ln of state.alarmLinks || []) {
+      ctx.beginPath(); ctx.moveTo(ln.x1, ln.y1); ctx.lineTo(ln.x2, ln.y2); ctx.stroke();
+    }
+    ctx.restore();
+    drawTag(ctx, x, y - 28, 'ANSWERING ALARM', '#fef2f2', 'rgba(69, 10, 10, 0.94)', '#ef4444');
+  }
+
+  // 3. Searching "X LAST SEEN" Marker
+  if (state.lastSeen && !state.alarmOrigin) {
+    const { x, y } = state.lastSeen;
+    ctx.save();
+    ctx.strokeStyle = '#fb923c';
+    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.arc(x, y, 13, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x - 5, y - 5); ctx.lineTo(x + 5, y + 5);
+    ctx.moveTo(x + 5, y - 5); ctx.lineTo(x - 5, y + 5);
+    ctx.stroke();
+    ctx.restore();
+    drawTag(ctx, x, y + 24, 'LAST SEEN', '#fed7aa', 'rgba(46, 18, 4, 0.92)', '#fb923c');
+  }
+}
+
+function drawCameraNode(ctx, cam) {
+  ctx.save();
+  ctx.translate(cam.x, cam.y);
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath(); ctx.arc(0, 0, 7.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = cam.alerting ? '#ef4444' : '#d4a84f';
+  ctx.beginPath(); ctx.arc(0, 0, 5.2, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = cam.alerting ? '#fee2e2' : '#2dd4bf';
+  ctx.beginPath(); ctx.arc(Math.cos(cam.angle) * 3, Math.sin(cam.angle) * 3, 2.3, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
 
 function drawInfiltrator(ctx, state, nowSec) {
   const p = state.player;
-  const hidden = p.inShadow || p.inSmoke;
-  const pulse = 0.5 + 0.5 * Math.sin(nowSec * 5);
-
+  const hidden = p.inShadow || p.inSmoke || (p.inLowCover && p.crouched);
   ctx.save();
   ctx.translate(p.x, p.y);
 
-  // Subtle Stealth Aura Ring (Cyan when HIDDEN, Amber when EXPOSED)
-  ctx.strokeStyle = hidden
-    ? `rgba(56, 189, 248, ${0.65 + pulse * 0.25})`
-    : p.inLight
-    ? 'rgba(251, 191, 36, 0.85)'
-    : 'rgba(244, 234, 213, 0.4)';
-  ctx.lineWidth = hidden ? 2.2 : 1.6;
-  ctx.beginPath();
-  ctx.arc(0, 0, p.r + (p.crouched ? 5 : 7), 0, Math.PI * 2);
-  ctx.stroke();
-
-  // Soft shadow underneath
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-  ctx.beginPath();
-  ctx.ellipse(2, 5, p.r + 1, p.r * 0.72, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Infiltrator cloaked shoulders + Art-Deco cowl facing movement angle
-  ctx.rotate(p.angle);
-  ctx.fillStyle = hidden ? '#0f2942' : '#1e293b';
-  ctx.strokeStyle = hidden ? '#38bdf8' : '#f4ead5';
+  // Glowing dashed stealth ring
+  ctx.strokeStyle = hidden ? '#38bdf8' : '#fef08a';
   ctx.lineWidth = 2;
+  if (hidden) ctx.setLineDash([4, 3]);
+  ctx.beginPath(); ctx.arc(0, 0, p.r + 5, 0, Math.PI * 2); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Sleek Art-Deco cloaked infiltrator cowl + brass visor chevron
+  ctx.rotate(p.angle);
+  ctx.fillStyle = '#0c273b';
+  ctx.strokeStyle = hidden ? '#7dd3fc' : '#f4ead5';
+  ctx.lineWidth = 2.1;
   ctx.beginPath();
-  ctx.ellipse(-1, 0, p.crouched ? 8.5 : 10, p.crouched ? 10 : 11.5, 0, 0, Math.PI * 2);
+  ctx.ellipse(-1, 0, p.r - 0.5, p.r + 0.8, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
-  // Crisp gold/ivory mask visor pointing forward
-  ctx.fillStyle = state.ledgerStolen ? '#f2cc78' : '#e0f2fe';
+  ctx.fillStyle = state.ledgerStolen ? '#facc15' : '#bae6fd';
   ctx.beginPath();
-  ctx.arc(4, 0, 4.4, 0, Math.PI * 2);
+  ctx.moveTo(7.2, 0); ctx.lineTo(1.5, -4.4); ctx.lineTo(3.2, 0); ctx.lineTo(1.5, 4.4);
+  ctx.closePath();
   ctx.fill();
   ctx.restore();
 
-  // Crisp World-Space Status Pill ("HIDDEN" / "EXPOSED")
-  if (hidden) {
-    drawWorldTag(ctx, p.x, p.y - 22, p.inSmoke ? 'SMOKED' : 'HIDDEN', '#38bdf8', 'rgba(8, 17, 34, 0.92)');
-  } else if (p.inLight) {
-    drawWorldTag(ctx, p.x, p.y - 22, 'EXPOSED', '#fcd34d', 'rgba(38, 22, 6, 0.92)');
+  if (hidden && state.detectionState !== 'ALARM') {
+    drawTag(ctx, p.x, p.y + 23, p.inSmoke ? 'SMOKED' : 'HIDDEN', '#7dd3fc', 'rgba(8, 22, 38, 0.92)', '#38bdf8');
   }
 }
 
@@ -546,95 +533,77 @@ function drawGuard(ctx, g, nowSec) {
   ctx.save();
   ctx.translate(g.x, g.y);
 
-  // Ground shadow
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-  ctx.beginPath();
-  ctx.ellipse(2, 6, g.r + 1, g.r * 0.72, 0, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+  ctx.beginPath(); ctx.arc(2, 4, g.r + 1, 0, Math.PI * 2); ctx.fill();
 
-  // Radial suspicion progress ring around guard when investigating
-  if (g.suspicion > 0.04 || g.state === 'ALERT') {
-    const pct = g.state === 'ALERT' ? 1 : g.suspicion;
-    ctx.strokeStyle = g.state === 'ALERT' ? '#ef4444' : '#f59e0b';
-    ctx.lineWidth = 2.6;
-    ctx.beginPath();
-    ctx.arc(0, 0, g.r + 6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * pct);
-    ctx.stroke();
-  }
-
-  ctx.rotate(g.angle);
-
-  // Uniformed shoulders in crisp high-contrast ivory & brass/crimson trim
-  ctx.fillStyle = '#f4ead5';
-  ctx.strokeStyle = g.spec.accent;
+  const fill = g.state === 'ALARM' ? '#ef4444' : g.state === 'SEARCHING' ? '#fb923c' : g.spec.color;
+  ctx.fillStyle = fill;
+  ctx.strokeStyle = '#fffbeb';
   ctx.lineWidth = 2.2;
-  ctx.beginPath();
-  ctx.ellipse(-1, 0, 9.5, 12.5, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, g.r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
-  // Brass cap / emblem
-  ctx.fillStyle = g.spec.color;
+  // Crisp dark directional chevron arrow inside guard circle
+  ctx.rotate(g.angle);
+  ctx.fillStyle = '#0b1120';
   ctx.beginPath();
-  ctx.arc(0, 0, 5.2, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Glowing Handheld Brass Lantern at right front
-  const lf = 0.85 + 0.15 * Math.sin(nowSec * 9 + g.id);
-  ctx.fillStyle = `rgba(254, 240, 138, ${lf})`;
-  ctx.beginPath();
-  ctx.arc(10, 5, 3.6, 0, Math.PI * 2);
+  ctx.moveTo(6.5, 0); ctx.lineTo(-4.5, -5.2); ctx.lineTo(-2.2, 0); ctx.lineTo(-4.5, 5.2);
+  ctx.closePath();
   ctx.fill();
   ctx.restore();
 
-  // World-space ? or ! indicator pill above guard
-  if (g.state === 'ALERT') {
-    drawWorldTag(ctx, g.x, g.y - 23, '! ALERT', '#fca5a5', 'rgba(127, 29, 29, 0.94)');
-  } else if (g.state === 'SUSPICIOUS' || g.state === 'SEARCH' || g.suspicion > 0.2) {
-    const pct = Math.round(g.suspicion * 100);
-    drawWorldTag(ctx, g.x, g.y - 23, `? ${pct}%`, '#fde68a', 'rgba(69, 26, 3, 0.92)');
+  // High-contrast circular overhead ? or ! badge
+  if (g.state === 'ALARM' || g.state === 'SUSPICIOUS' || g.state === 'SEARCHING') {
+    const isExcl = g.state === 'ALARM';
+    const bx = g.x, by = g.y - 23;
+    ctx.save();
+    ctx.fillStyle = isExcl ? '#ef4444' : '#facc15';
+    ctx.strokeStyle = '#0b1120';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(bx, by, 10, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = isExcl ? '#ffffff' : '#0b1120';
+    ctx.font = '900 13px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(isExcl ? '!' : '?', bx, by + 0.5);
+    ctx.restore();
   }
 }
 
 function drawAimArc(ctx, state) {
   const p = state.player;
-  const maxDist = 210 * state.mods.throwRangeMult;
-  let dx = state.aim.x - p.x;
-  let dy = state.aim.y - p.y;
-  const dist = Math.hypot(dx, dy);
-  if (dist < 24) return;
-  if (dist > maxDist) { dx = (dx / dist) * maxDist; dy = (dy / dist) * maxDist; }
-  const tx = p.x + dx;
-  const ty = p.y + dy;
+  const maxD = 230 * state.mods.throwRangeMult;
+  let dx = state.aim.x - p.x, dy = state.aim.y - p.y;
+  const d = Math.hypot(dx, dy);
+  if (d < 22) return;
+  if (d > maxD) { dx = (dx / d) * maxD; dy = (dy / d) * maxD; }
+  const tx = p.x + dx, ty = p.y + dy;
   ctx.save();
-  ctx.strokeStyle = 'rgba(242, 204, 120, 0.45)';
+  ctx.strokeStyle = 'rgba(250, 204, 21, 0.52)';
   ctx.setLineDash([4, 5]);
-  ctx.lineWidth = 1.2;
+  ctx.lineWidth = 1.4;
   ctx.beginPath();
   ctx.moveTo(p.x, p.y);
   ctx.quadraticCurveTo((p.x + tx) / 2, (p.y + ty) / 2 - 22, tx, ty);
   ctx.stroke();
   ctx.setLineDash([]);
-  ctx.beginPath();
-  ctx.arc(tx, ty, 6, 0, Math.PI * 2);
-  ctx.stroke();
+  ctx.beginPath(); ctx.arc(tx, ty, 6, 0, Math.PI * 2); ctx.stroke();
   ctx.restore();
 }
 
-function drawWorldTag(ctx, x, y, text, fg, bg, clamp = true) {
+function drawTag(ctx, x, y, text, fg, bg, border) {
   ctx.save();
-  ctx.font = '700 9.5px ui-monospace, SFMono-Regular, monospace';
-  const tw = ctx.measureText(text).width + 10;
-  const bx = clamp ? Math.max(20, Math.min(STAGE_W - tw - 20, x - tw / 2)) : x - tw / 2;
-  const by = clamp ? Math.max(18, Math.min(STAGE_H - 22, y - 8)) : y - 8;
+  ctx.font = '800 10px ui-monospace, SFMono-Regular, monospace';
+  const tw = ctx.measureText(text).width + 12;
+  const bx = Math.max(18, Math.min(STAGE_W - tw - 18, x - tw / 2));
+  const by = Math.max(18, Math.min(STAGE_H - 22, y - 8));
   ctx.fillStyle = bg;
-  ctx.fillRect(bx, by, tw, 15);
-  ctx.strokeStyle = fg;
-  ctx.lineWidth = 1;
-  ctx.strokeRect(bx + 0.5, by + 0.5, tw - 1, 14);
+  ctx.fillRect(bx, by, tw, 17);
+  ctx.strokeStyle = border || fg;
+  ctx.lineWidth = 1.1;
+  ctx.strokeRect(bx + 0.5, by + 0.5, tw - 1, 16);
   ctx.fillStyle = fg;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(text, bx + tw / 2, by + 8);
+  ctx.fillText(text, bx + tw / 2, by + 9);
   ctx.restore();
 }
