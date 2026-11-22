@@ -25,8 +25,7 @@ function updateStealthDetection(state, input, dt, sound, onRibbon, onWingClear) 
     p.y += my * spd * dt;
     p.angle = Math.atan2(my, mx);
     resolveMovement(p, state.wing.obstacles);
-    const last = state.trail[state.trail.length - 1];
-    if (!last || Math.hypot(p.x - last.x, p.y - last.y) > 22) state.trail.push({ x: p.x, y: p.y });
+    recordStep(state.trail, p.x, p.y);
   }
 
   evaluateStealthSurface(state, dt);
@@ -56,6 +55,7 @@ function updateStealthDetection(state, input, dt, sound, onRibbon, onWingClear) 
       r.taken = true;
       state.relicsTaken += 1;
       state.score += Math.round(350 * state.mods.scoreMult);
+      state.runPins.push({ x: r.x, y: r.y, label: 'RELIC', sx: p.x, sy: p.y });
       spawnSparks(state, r.x, r.y, '#f0d084', 10);
       if (sound) sound.playLootChime();
     }
@@ -68,6 +68,17 @@ function updateStealthDetection(state, input, dt, sound, onRibbon, onWingClear) 
   }
 }
 
+// Coalesce straight strides, never corners, reversals or a vent landing.
+function recordStep(trail, x, y) {
+  const b = trail.at(-1), a = trail.at(-2);
+  const dx = x - b.x, dy = y - b.y;
+  if (!dx && !dy) return;
+  if (a && !b.vent && Math.hypot(x - a.x, y - a.y) <= 22 &&
+      Math.abs((b.x-a.x)*dy - (b.y-a.y)*dx) < 1e-8 && (b.x-a.x)*dx + (b.y-a.y)*dy > 0) {
+    b.x = x; b.y = y;
+  } else trail.push({ x, y });
+}
+
 function douseNearbySconce(state, sound, onRibbon) {
   const lamp = findNearestLitSconce(state, 120);
   if (!lamp) {
@@ -77,9 +88,7 @@ function douseNearbySconce(state, sound, onRibbon) {
   lamp.lit = false;
   state.dousedCount += 1;
   state.score += Math.round(100 * state.mods.scoreMult);
-  if (state.runPins && !state.runPins.some((p) => p.label === 'DOUSED LAMP')) {
-    state.runPins.push({ x: lamp.x, y: lamp.y, label: 'DOUSED LAMP', color: '#38bdf8', dy: 26 });
-  }
+  state.runPins.push({ x: lamp.x, y: lamp.y, label: 'DOUSED LAMP' });
   spawnSparks(state, lamp.x, lamp.y, '#94a3b8', 12);
   if (sound) sound.playSconceDouse();
 
@@ -116,7 +125,8 @@ function useBrassFloorVent(state, sound, onRibbon) {
   state.player.x = dest.x;
   state.player.y = dest.y;
   state.player.crouched = true;
-  state.trail.push({ x: dest.x, y: dest.y });
+  state.trail.push({ x: dest.x, y: dest.y, vent: true });
+  state.lastVentAt = state.time;
   spawnSparks(state, dest.x, dest.y, '#f4d482', 12);
   if (sound) sound.playVentClunk();
   if (onRibbon) onRibbon('SLIPPED SILENTLY THROUGH SUBFLOOR BRASS VENT', false, 2.2);
@@ -208,6 +218,7 @@ function claimSolisOpal(state, sound, onRibbon) {
   state.relicsTaken += 1;
   const pts = Math.round(1200 * state.mods.scoreMult);
   state.score += pts;
+  state.runPins.push({ ...state.wing.opal, label: 'OPAL', sx: state.player.x, sy: state.player.y });
   spawnSparks(state, state.wing.opal.x, state.wing.opal.y, '#38bdf8', 22);
   state.ripples.push({ x: state.wing.opal.x, y: state.wing.opal.y, r: 12, maxR: 84, alpha: 0.85, kind: 'opal' });
   if (sound) sound.playLootChime();
@@ -229,9 +240,7 @@ function updateEffects(state, dt, sound) {
     if (c.t >= c.dur) {
       const lureR = 178 * state.mods.lureRadiusMult;
       state.lastCoinArc = { sx: c.sx, sy: c.sy, tx: c.tx, ty: c.ty, alpha: 0.85 };
-      if (state.runPins && !state.runPins.some((p) => p.label === 'CLINK! LURE')) {
-        state.runPins.push({ x: c.tx, y: c.ty, label: 'CLINK! LURE', color: '#f59e0b', dy: -22 });
-      }
+      state.runPins.push({ x: c.tx, y: c.ty, label: 'CLINK! LURE' });
       state.ripples.push(
         { x: c.tx, y: c.ty, r: 14, maxR: lureR, alpha: 0.96, kind: 'coin', label: 'CLINK!' },
         { x: c.tx, y: c.ty, r: 4, maxR: lureR * 0.62, alpha: 0.82, kind: 'coin' }
@@ -242,7 +251,7 @@ function updateEffects(state, dt, sound) {
       state.coinsInFlight.splice(i, 1);
     }
   }
-  if (state.lastCoinArc && !state.shotMode) {
+  if (state.lastCoinArc) {
     state.lastCoinArc.alpha -= dt * 0.55;
     if (state.lastCoinArc.alpha <= 0) state.lastCoinArc = null;
   }

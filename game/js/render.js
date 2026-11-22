@@ -7,9 +7,12 @@ export { drawRaycastCones, drawDynamicLampPools, drawGuardFootstepSonar };
 
 const floorCache = new Map();
 let shadowHatch;
+let labelBounds; // Stage-space plaques and actors the next speech slip must leave clear.
 
 function renderMuseumStage(ctx, state, nowSec) {
   const w = state.wing;
+  const review = state.mode === 'debrief';
+  labelBounds = state.mode === 'play' && state.guards.some(g => g.state !== 'PATROL') ? [] : null;
   ctx.clearRect(0, 0, STAGE_W, STAGE_H);
   ctx.drawImage(getMuseumFloor(w), 0, 0);
   for (const a of w.alcoves || []) drawShadowAlcove(ctx, a);
@@ -24,10 +27,15 @@ function renderMuseumStage(ctx, state, nowSec) {
   for (const o of w.obstacles) if (o.kind !== 'settee') drawTallMuseumProp(ctx, o);
   drawSconceFixtures(ctx, state);
   drawOpalAndRelics(ctx, state, nowSec);
-  drawBrassElevator(ctx, state, nowSec);
+  if (!review) drawBrassElevator(ctx, state, nowSec);
   for (const sm of state.veilsActive) drawVelvetVeil(ctx, sm, nowSec, state.player.inVeil && veilHolds(sm, state.player));
-  drawTacticalOverlays(ctx, state, nowSec);
-  if (state.mode === 'debrief' && state.debriefTrail) drawGoldenTrail(ctx, state.debriefTrail);
+  if (!review) drawTacticalOverlays(ctx, state, nowSec);
+  if (!review && state.player.ventInRange) {
+    for (const v of w.vents) {
+      const here = Math.hypot(state.player.x-v.x, state.player.y-v.y) < 54;
+      drawTag(ctx, v.x, v.y+23, 'VENT [V]', here ? '#03222b' : '#5eead4', here ? '#67e8f9' : '#09141c', here ? '#ecfeff' : '#2dd4bf');
+    }
+  }
   if (state.mode === 'play' && !state.shotMode && state.aim.active && state.coins > 0) drawAimArc(ctx, state);
   for (const c of state.coinsInFlight) {
     const u = Math.min(1, c.t / c.dur);
@@ -36,7 +44,7 @@ function renderMuseumStage(ctx, state, nowSec) {
     ctx.strokeStyle = '#92400e'; ctx.lineWidth = 1; ctx.stroke();
   }
   for (const cam of state.cameras) drawCameraDome(ctx, cam);
-  drawGuardFootstepSonar(ctx, state.guardSteps || []);
+  if (!review) drawGuardFootstepSonar(ctx, state.guardSteps || []);
   if (state.mode !== 'debrief') drawInfiltrator(ctx, state);
   for (const g of state.guards) drawGuard(ctx, g);
   for (const pt of state.particles) {
@@ -44,6 +52,12 @@ function renderMuseumStage(ctx, state, nowSec) {
     ctx.fillStyle = pt.color; ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2); ctx.fill();
   }
   ctx.globalAlpha = 1;
+  if (labelBounds) drawGuardBarks(ctx, state);
+  if (review) {
+    ctx.fillStyle = 'rgba(3, 11, 20, 0.38)'; ctx.fillRect(0, 0, STAGE_W, STAGE_H);
+    drawGoldenTrail(ctx, state.debriefTrail);
+    drawBrassElevator(ctx, state, nowSec);
+  }
 }
 
 function drawDynamicLampPools(ctx, state, nowSec) {
@@ -153,12 +167,12 @@ function drawPatrolTracks(ctx, guards) {
       ctx.fillStyle = '#211d18'; ctx.strokeStyle = '#d1b477'; ctx.lineWidth = 1.4;
       ctx.beginPath(); ctx.arc(wp.x, wp.y, 11.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#fff0c9'; ctx.fillText(`${wp.pause}s`, wp.x, wp.y + 0.7);
+      labelBounds?.push([wp.x-12, wp.y-12, wp.x+12, wp.y+12]);
     }
   }
   ctx.restore();
 }
 
-// Pre-render diagonal chevron marble parquet, crimson velvet runners with brass filigree & octagonal rotunda medallion
 function getMuseumFloor(wing) {
   if (floorCache.has(wing.id)) return floorCache.get(wing.id);
   const off = document.createElement('canvas');
@@ -166,7 +180,6 @@ function getMuseumFloor(wing) {
   off.height = STAGE_H;
   const g = off.getContext('2d');
 
-  // Deep midnight chiaroscuro obsidian-navy floor so warm golden lamp pools vs dark shadows pop at thumbnail scale!
   g.fillStyle = '#060911';
   g.fillRect(0, 0, STAGE_W, STAGE_H);
 
@@ -532,7 +545,6 @@ function drawGuardCone(ctx, g) {
     gr.addColorStop(1, 'rgba(202, 138, 4, 0.07)');
     stroke = '#ffd15c';
   } else {
-    // High-contrast luminous moonlight-ice cyan raycast cone popping vividly against dark marble & velvet!
     gr.addColorStop(0, 'rgba(64, 210, 255, 0.34)');
     gr.addColorStop(0.62, 'rgba(56, 189, 248, 0.19)');
     gr.addColorStop(1, 'rgba(14, 165, 233, 0.05)');
@@ -568,7 +580,6 @@ function drawBrassVents(ctx, vents, state, nowSec) {
     ctx.setLineDash([]); ctx.lineDashOffset = 0;
   }
   for (const v of vents) {
-    const here = open && Math.hypot(state.player.x - v.x, state.player.y - v.y) < 54;
     ctx.save();
     ctx.translate(v.x, v.y);
     if (open) {
@@ -593,8 +604,7 @@ function drawBrassVents(ctx, vents, state, nowSec) {
     for (const sy of [-6, -2, 2, 6]) {
       ctx.beginPath(); ctx.moveTo(-9, sy); ctx.lineTo(9, sy); ctx.stroke();
     }
-    if (here) drawTag(ctx, 0, 19, 'VENT [V]', '#03222b', '#67e8f9', '#ecfeff', false);
-    else if (live) drawTag(ctx, 0, 19, 'VENT [V]', '#5eead4', 'rgba(9, 20, 28, 0.92)', '#2dd4bf', false);
+    if (live && !open) drawTag(ctx, 0, 19, 'VENT [V]', '#5eead4', 'rgba(9, 20, 28, 0.92)', '#2dd4bf', false);
     ctx.restore();
   }
   ctx.restore();
@@ -685,7 +695,7 @@ function drawOpalAndRelics(ctx, state, nowSec) {
     ctx.setLineDash([3, 3]);
     ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.stroke();
     ctx.setLineDash([]);
-    drawTag(ctx, 0, 35, 'OPAL TAKEN', '#6ee7b7', 'rgba(11, 26, 22, 0.96)', '#34d399', false, true);
+    if (state.mode !== 'debrief') drawTag(ctx, 0, 35, 'OPAL TAKEN', '#6ee7b7', 'rgba(11, 26, 22, 0.96)', '#34d399', false, true);
   }
   ctx.restore();
 }
@@ -807,7 +817,6 @@ function drawVelvetVeil(ctx, sm, nowSec, hiding) {
 }
 
 function drawTacticalOverlays(ctx, state, nowSec) {
-  // 1. Golden Parabolic Coin Toss Arc + Dashed Curiosity Line + Concentric Ripples + CLINK!
   if (state.lastCoinArc && state.lastCoinArc.alpha > 0.05) {
     const a = state.lastCoinArc;
     ctx.save();
@@ -854,7 +863,6 @@ function drawTacticalOverlays(ctx, state, nowSec) {
     } else drawTag(ctx, rp.x, rp.y - 20, rp.label, '#ffe7a2', '#231907', '#e5be67');
   }
 
-  // 2. Curfew Bell Red-Gold Alarm Pulses & Converging Vectors
   if (state.bellOrigin) {
     const { x, y } = state.bellOrigin;
     ctx.save();
@@ -874,7 +882,6 @@ function drawTacticalOverlays(ctx, state, nowSec) {
     drawTag(ctx, x, y - 34, 'CURFEW BELL!', '#ffe4e6', 'rgba(76, 10, 24, 0.95)', '#fb7185');
   }
 
-  // 3. Ghost Silhouette Marker at LAST SEEN
   if (state.lastGlimpse) {
     const lg = state.lastGlimpse;
     ctx.save();
@@ -901,37 +908,36 @@ function drawTacticalOverlays(ctx, state, nowSec) {
   }
 }
 
-function drawGoldenTrail(ctx, trailObj) {
-  const pts = trailObj.points;
-  if (!pts || pts.length < 2) return;
+function drawGoldenTrail(ctx, { points, pins }) {
   ctx.save();
-  // Soft warm glow under trail
-  ctx.strokeStyle = 'rgba(240, 208, 132, 0.28)';
-  ctx.lineWidth = 7;
-  ctx.lineCap = 'round';
+  const ink = ctx.createLinearGradient(0, STAGE_H, STAGE_W, 0);
+  for (const [at, color] of [[0,'#79ffed'],[.38,'#91fff2'],[.56,'#ffdf83'],[.73,'#a0ffeb'],[1,'#80ffcf']]) ink.addColorStop(at, color);
   ctx.lineJoin = 'round';
-  ctx.beginPath();
-  pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
-  ctx.stroke();
-
-  // Crisp dashed gold infiltration route
-  ctx.strokeStyle = '#f0d084';
-  ctx.setLineDash([9, 6]);
-  ctx.lineWidth = 2.6;
-  ctx.beginPath();
-  pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
-  ctx.stroke();
+  const walk = new Path2D(), duct = new Path2D();
+  points.forEach((p, i) => {
+    if (p.vent) { duct.moveTo(points[i-1].x, points[i-1].y); duct.lineTo(p.x, p.y); }
+    if (!i || p.vent) walk.moveTo(p.x, p.y); else walk.lineTo(p.x, p.y);
+  });
+  ctx.strokeStyle = '#6dd8ef'; ctx.lineWidth = 3; ctx.setLineDash([3,7]); ctx.stroke(duct);
   ctx.setLineDash([]);
-
-  // Brass milestone pins along the infiltration route
-  for (const pin of trailObj.pins || []) {
-    ctx.fillStyle = '#0d1018';
-    ctx.strokeStyle = pin.color || '#f0d084';
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(pin.x, pin.y, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = pin.color || '#f0d084';
-    ctx.beginPath(); ctx.arc(pin.x, pin.y, 2.5, 0, Math.PI * 2); ctx.fill();
-    drawTag(ctx, pin.x, pin.y + (pin.dy ?? -20), pin.label, pin.color || '#f0d084', 'rgba(13, 16, 24, 0.94)', pin.color || '#c9a252');
+  ctx.strokeStyle = '#083535'; ctx.lineWidth = 10; ctx.shadowColor = '#36e7ce'; ctx.shadowBlur = 12; ctx.stroke(walk);
+  ctx.shadowBlur = 0; ctx.strokeStyle = ink; ctx.lineWidth = 5.5; ctx.setLineDash([15,7]); ctx.stroke(walk);
+  ctx.setLineDash([]);
+  for (const { x,y,label,sx,sy } of pins) {
+    if (label === 'DOUSED LAMP') continue; // Unlit sconces already mark their own sites.
+    const entry = label === 'ENTRY', opal = label === 'OPAL', gem = opal || label === 'RELIC';
+    if (gem) {
+      ctx.strokeStyle = '#e8dfb7'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(x, y); ctx.stroke();
+    }
+    const r = opal ? 15 : 10;
+    ctx.beginPath();
+    if (gem) { ctx.moveTo(x,y-r); ctx.lineTo(x+r,y); ctx.lineTo(x,y+r); ctx.lineTo(x-r,y); ctx.closePath(); }
+    else ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = entry ? '#73ffdf' : '#ffdc7f'; ctx.fill();
+    ctx.strokeStyle = '#102022'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, opal ? 5 : 3, 0, Math.PI * 2); ctx.fillStyle = '#174446'; ctx.fill();
+    if (entry || opal) drawTag(ctx, x, y + (entry ? -29 : 36), entry ? 'ENTRY' : 'OPAL LIFTED', '#e0fff7', '#093730', '#8bffdb', true, true);
   }
   ctx.restore();
 }
@@ -983,7 +989,6 @@ function drawInfiltrator(ctx, state) {
   ctx.beginPath(); ctx.arc(0, 0, p.r + 7, 0, Math.PI * 2); ctx.stroke();
   ctx.setLineDash([]);
 
-  // Distinct Art-Deco Noir Infiltrator: tailored trench shoulders + wide-brimmed fedora + emerald/ivory scarf collar
   ctx.rotate(p.angle);
   ctx.fillStyle = concealed ? '#082423' : '#101d33';
   ctx.strokeStyle = concealed ? '#a7f3d0' : '#f6efe2';
@@ -1064,15 +1069,60 @@ function drawGuard(ctx, g) {
     const pts = g.waypoints, total = pts[(g.wpIndex + pts.length - 1) % pts.length].pause;
     ctx.strokeStyle = '#f1cf87'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(g.x, g.y, 16, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * g.pauseLeft / total); ctx.stroke();
-  } else if (g.callout) {
-    const isBreach = g.state === 'BREACH';
-    drawTag(
-      ctx, g.x, g.y - 24, g.callout,
-      isBreach ? '#ffe4e6' : '#fef08a',
-      isBreach ? 'rgba(84, 12, 28, 0.95)' : 'rgba(34, 24, 8, 0.94)',
-      isBreach ? '#fb7185' : '#f59e0b'
-    );
   }
+}
+
+function drawGuardBarks(ctx, state) {
+  const { guards, player, wing, detectionState } = state;
+  for (const p of [player, wing.opal, wing.elevator, ...guards]) {
+    const r = p === wing.elevator ? 43 : 22;
+    labelBounds.push([p.x-r, p.y-(p.lurePos ? 40 : r), p.x+r, p.y+r]);
+  }
+  const top = state.ribbonTimer > 0 || detectionState === 'BREACH' || (detectionState === 'SWEEPING' && state.time - state.lastVentAt < 6) ? 66 : 18;
+  ctx.save();
+  ctx.font = 'italic bold 23px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const g of guards) {
+    if (g.state === 'PATROL') continue;
+    const text = g.state === 'CURIOUS' ? 'What was that?' : g.state === 'BREACH' ? (g.id % 2 ? 'Flanking!' : 'Intruder!') :
+      detectionState === 'BREACH' ? 'Cut them off!' : state.wingAlerts && g.id % 2 ? 'Lost sight!' : 'Check the hall!';
+    const w = Math.ceil(ctx.measureText(text).width) + 23, h = 31;
+    const outward = g.x < (g.target?.x ?? g.x) ? -1 : 1;
+    let spot;
+    for (const side of [outward, -outward]) {
+      for (const [offset, dy] of [[29,-52],[50,-52],[29,-80],[50,-80],[20,-102],[29,24],[50,24],[29,56]]) {
+        const x = Math.max(25, Math.min(STAGE_W - w - 25, g.x + (side > 0 ? offset : -offset-w)));
+        const y = g.y + dy;
+        if ((side > 0 ? x < g.x+6 : x+w > g.x-6) || y < top || y+h > STAGE_H-17 ||
+            labelBounds.some(([l,t,r,b]) => x < r+5 && x+w > l-5 && y < b+5 && y+h > t-5)) continue;
+        const cover = wing.obstacles.some(o => x < o.x+o.w+2 && x+w > o.x-2 && y < o.y+o.h+2 && y+h > o.y-2);
+        if (!spot || !cover) spot = { x,y,dy,side,cover };
+        if (!cover) break;
+      }
+      if (spot && !spot.cover) break;
+    }
+    if (!spot) continue;
+    const { x, y, dy, side } = spot;
+    const tail = side > 0 ? 13 : w - 30, endY = dy < 0 ? h : 2;
+    const dx = g.x + side * 14 - x - tail - 7, dyTip = g.y + Math.sign(dy) * 7 - y - endY;
+    const u = Math.min(1, 34 / Math.hypot(dx, dyTip));
+    const tx = tail + 7 + u * dx, ty = endY + u * dyTip;
+    ctx.save(); ctx.translate(x, y);
+    if (u < 1) {
+      ctx.strokeStyle = '#dcc79c'; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tail + 7 + dx, endY + dyTip); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.moveTo(5, 3);
+    if (dy > 0) { ctx.lineTo(tail, 2); ctx.lineTo(tx, ty); ctx.lineTo(tail + 14, 2); }
+    ctx.lineTo(w, 0); ctx.lineTo(w - 3, h - 2);
+    if (dy < 0) { ctx.lineTo(tail + 14, h); ctx.lineTo(tx, ty); ctx.lineTo(tail, h); }
+    ctx.lineTo(0, h + 1); ctx.closePath();
+    ctx.lineJoin = 'round'; ctx.lineWidth = 3; ctx.strokeStyle = '#232329'; ctx.stroke();
+    ctx.fillStyle = '#faf3e0'; ctx.fill();
+    ctx.translate(w / 2, h / 2 + 1); ctx.rotate(-0.025); ctx.fillStyle = '#26242a'; ctx.fillText(text, 0, 0);
+    ctx.restore();
+    labelBounds.push([x, y, x+w, y+h]);
+  }
+  ctx.restore();
 }
 
 function drawAimArc(ctx, state) {
@@ -1113,6 +1163,10 @@ function drawTag(ctx, x, y, text, fg, bg, border, clamp = true, hero = false, do
   if (clamp) {
     bx = Math.max(18, Math.min(STAGE_W - tw - 18, bx));
     by = Math.max(18, Math.min(STAGE_H - h - 6, by));
+  }
+  if (labelBounds) {
+    const { e, f } = ctx.getTransform();
+    labelBounds.push([bx+e, by+f, bx+tw+e, by+h+f]);
   }
   if (glow) {
     ctx.shadowColor = glow;

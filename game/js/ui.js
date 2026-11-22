@@ -16,28 +16,13 @@ const STATE_COPY = {
 const ROMANS = ['I', 'II', 'III', 'IV', 'V'];
 
 function mountArtDecoHud(handlers) {
-  if (!document.querySelector('[data-ui="objective"]')) {
-    document.getElementById('topbar').innerHTML = `
-      <div class="top-left">
-        <span data-ui="wing-roman" class="roman-seal">I</span>
-        <span data-ui="wing-name" class="wing-title">GRAND ROTUNDA</span>
-        <span class="brass-pip">◆</span>
-        <span data-ui="objective" class="top-objective">Slip unseen to The Solis Opal vitrine, then board the Brass Elevator</span>
-      </div>
-      <div class="top-right">
-        <span class="top-metric"><em class="mk">WING</em> <strong data-ui="gallery" class="mono">I/V</strong></span>
-        <span class="top-metric"><em class="mk">TIME</em> <strong data-ui="timer" class="mono">00:46</strong></span>
-        <span class="top-metric"><em class="mk">SCORE</em> <strong data-ui="score" class="mono gold">800</strong></span>
-        <button data-ui="btn-mute" class="mute-btn" title="Mute Audio (M)">SFX</button>
-      </div>`;
-  }
-
   document.getElementById('overlays').innerHTML = `
+    <div data-ui="alert" class="alert-header hidden" role="status"><strong></strong><span></span></div>
     <div data-ui="curfew-ribbon" class="curfew-ribbon hidden"></div>
     <div data-ui="debrief-map-tag" class="debrief-map-tag hidden">
-      <span class="dmt-gold">✦ INFILTRATION LOG</span>
-      <span data-ui="dmt-wing">WING I · GRAND ROTUNDA — GOLDEN TRAIL</span>
+      <b>The Getaway Route</b><span data-ui="dmt-wing"></span>
     </div>
+    <div class="route-key"><b>FIELD KEY</b><span><i></i> Your route</span><span>◆ &nbsp;Relic lifted</span><span>◎ &nbsp;Brass lure</span></div>
     <div data-ui="overlay-title" class="stage-overlay hidden">
       <div class="deco-modal title-modal">
         <div class="deco-rule"><span>✦ GRAND MERIDIAN MUSEUM · 1928 ✦</span></div>
@@ -136,24 +121,17 @@ function mountArtDecoHud(handlers) {
       </div>
     </div>
     <div data-ui="hud-debrief" class="hud-view debrief-view hidden">
-      <div class="deb-kicker">CURFEW BEATEN</div>
-      <div class="deb-seal-wrap">
-        <div class="deb-seal"><span data-ui="deb-grade" class="deb-letter">S</span></div>
-        <div data-ui="deb-rating" class="deb-rating">GHOST RATING: S</div>
-        <div data-ui="deb-subtitle" class="deb-sub">Unseen Phantom · Grand Rotunda</div>
-      </div>
-      <div class="deb-ledger">
-        <div class="dl-row"><span>TIME</span><strong data-ui="deb-time" class="mono">01:18</strong></div>
-        <div class="dl-row"><span>ALERTS</span><strong data-ui="deb-alerts" class="mono emerald">0</strong></div>
-        <div class="dl-row"><span>LAMPS DOUSED</span><strong data-ui="deb-doused" class="mono cyan">2</strong></div>
-        <div class="dl-row"><span>COINS USED</span><strong data-ui="deb-coins" class="mono gold">2</strong></div>
-        <div class="dl-row"><span>RELICS</span><strong data-ui="deb-relics" class="mono gold">4 / 4</strong></div>
-        <div class="dl-row highlight"><span>GHOST BONUS</span><strong data-ui="deb-bonus" class="mono gold">+2,500</strong></div>
-      </div>
-      <div class="deb-wings">
-        <div class="sec-h">MUSEUM LEDGER · 5 WINGS</div>
-        <div data-ui="deb-wing-list" class="dw-list"></div>
-      </div>
+      <header><div class="deb-kicker">GRAND MERIDIAN &nbsp; / &nbsp; EXTRACTION PAPERS</div><h2 data-ui="deb-title"></h2></header>
+      <div data-ui="deb-rating" class="deb-stamp"><span data-ui="deb-rank"></span> · <span data-ui="deb-grade"></span></div>
+      <div class="medals">${[
+        ['UNSEEN', 'M2 12Q12 -1 22 12Q12 25 2 12ZM8 20L18 4M10 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0'],
+        ['OPAL STOLEN', 'M2 9L7 4H17L22 9L12 21ZM2 9H22M8 9L12 21L16 9L12 4Z'],
+        ['UNDER 60s', 'M9 2H15M12 2V5M12 5a8 8 0 1 0 .1 0ZM12 8V13L16 15'],
+      ].map(([name, path]) => `<div class="medal"><i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${path}"/></svg></i><b>${name}</b></div>`).join('')}</div>
+      <table class="deb-ledger"><tbody>${[['TIME','time'],['BELLS TOLLED','alerts'],['RELICS','relics'],['SCORE','score']].map(
+        ([label, key]) => `<tr><th scope="row">${label}</th><td data-ui="deb-${key}"></td></tr>`).join('')}</tbody></table>
+      <p class="deb-details"><span><b data-ui="deb-doused"></b> lamps doused</span><span><b data-ui="deb-coins"></b> coins used</span><span><b data-ui="deb-bonus"></b> bonus</span></p>
+      <nav class="dw-list" data-ui="deb-wing-list" aria-label="Museum wing ledger"></nav>
       <div class="deb-btns">
         <button data-ui="btn-next-wing" class="btn-brass btn-full">NEXT WING ↵</button>
         <div class="deb-btn-pair">
@@ -162,18 +140,6 @@ function mountArtDecoHud(handlers) {
         </div>
       </div>
     </div>`;
-
-  if (!document.getElementById('controls').children.length) {
-    document.getElementById('controls').innerHTML = `
-      <span><kbd>WASD</kbd> Move</span><span class="bsep">·</span>
-      <span><kbd>SHIFT</kbd> Crouch in Cover</span><span class="bsep">·</span>
-      <span><kbd>Q</kbd>/<kbd>LMB</kbd> Coin Lure</span><span class="bsep">·</span>
-      <span><kbd>E</kbd> Velvet Veil</span><span class="bsep">·</span>
-      <span><kbd>R</kbd> Douse Lamp</span><span class="bsep">·</span>
-      <span><kbd>V</kbd> Brass Vent</span><span class="bsep">·</span>
-      <span><kbd>P</kbd> Pause</span><span class="bsep">·</span>
-      <span><kbd>X</kbd> Restart</span>`;
-  }
 
   ui('btn-start').onclick = handlers.onStart;
   ui('btn-next-wing').onclick = handlers.onNextWing;
@@ -200,6 +166,15 @@ function updateCuratorTelemetry(state) {
   ui('hud-live').classList.toggle('hidden', isDebrief);
   ui('hud-debrief').classList.toggle('hidden', !isDebrief);
   ui('debrief-map-tag').classList.toggle('hidden', !isDebrief);
+  const alert = ui('alert'), active = state.mode === 'play';
+  const lead = active && state.detectionState === 'BREACH' ? 'BREACH!' :
+    active && state.detectionState === 'SWEEPING' && state.time - state.lastVentAt < 6 ? 'VENT ESCAPE' : '';
+  if (alert.dataset.lead !== lead) {
+    alert.dataset.lead = lead;
+    alert.className = `alert-header ${lead === 'BREACH!' ? 'alarm' : lead ? 'escape' : 'hidden'}`;
+    alert.firstElementChild.textContent = lead;
+    alert.lastElementChild.textContent = lead === 'BREACH!' ? '— SEVER SIGHTLINES & ESCAPE' : '— BREAK SIGHT & RECOVER';
+  }
   if (isDebrief) return;
 
   const meta = STATE_COPY[state.detectionState] || STATE_COPY.UNSEEN;
@@ -263,30 +238,38 @@ function updateCuratorTelemetry(state) {
 function renderDebriefLedger(state, onSelectWing) {
   const w = state.wing, ghost = state.wingAlerts === 0;
   const grade = state.campaign[state.wingIndex].grade;
-  ui('dmt-wing').textContent = `WING ${w.roman} · ${w.title} — GOLDEN INFILTRATION TRAIL`;
+  ui('dmt-wing').textContent = `WING ${w.roman}  /  ${w.title}`;
+  ui('deb-title').textContent = ghost ? 'CLEAN GETAWAY' : 'CURFEW BEATEN';
+  ui('deb-rank').textContent = ghost ? 'GHOST' : 'RANK';
   ui('deb-grade').textContent = grade;
-  ui('deb-rating').textContent = `GHOST RATING: ${grade}`;
-  ui('deb-subtitle').textContent = ghost ? `Unseen Phantom · ${w.title}` : `Velvet Escapee · ${w.title}`;
+  ui('deb-rating').classList.toggle('ghost', ghost);
+  const earned = [ghost, state.opalTaken, state.time < 60];
+  document.querySelectorAll('.medal').forEach((m, i) => {
+    m.classList.toggle('earned', earned[i]);
+    m.setAttribute('aria-label', `${m.textContent}: ${earned[i] ? 'earned' : 'not earned'}`);
+  });
   ui('deb-time').textContent = formatTime(state.time);
-  ui('deb-alerts').textContent = String(state.wingAlerts);
-  ui('deb-alerts').className = `mono ${ghost ? 'emerald' : 'crimson'}`;
+  ui('deb-alerts').textContent = String(state.bellCount);
   ui('deb-doused').textContent = String(state.dousedCount);
   ui('deb-coins').textContent = String(state.coinsUsed);
   ui('deb-relics').textContent = `${state.relicsTaken} / ${state.relicsTotal}`;
+  ui('deb-score').textContent = state.score.toLocaleString('en-US');
   ui('deb-bonus').textContent = `+${state.ghostBonus.toLocaleString('en-US')}`;
 
   const list = ui('deb-wing-list');
-  list.innerHTML = '';
+  list.textContent = 'WINGS';
   MUSEUM_WINGS.forEach((wg, idx) => {
     const rec = state.campaign[idx];
-    const row = document.createElement('div');
-    row.className = `dw-row${idx === state.wingIndex ? ' active' : ''}`;
-    const tag = rec ? `RANK ${rec.grade}` : idx === state.wingIndex + 1 ? 'NEXT →' : 'LOCKED';
-    const cls = rec ? '' : idx === state.wingIndex + 1 ? 'next' : 'lock';
-    row.innerHTML = `<span class="dw-name">${wg.roman}. ${wingName(wg)}</span><span class="dw-tag ${cls}">${tag}</span>`;
-    if (rec || idx <= state.wingIndex + 1) row.onclick = () => onSelectWing(idx);
+    const row = document.createElement('button');
+    row.textContent = wg.roman;
+    row.disabled = !rec && idx > state.wingIndex + 1;
+    row.title = `${wingName(wg)} · ${rec ? `Rank ${rec.grade}` : row.disabled ? 'Locked' : 'Available'}`;
+    row.setAttribute('aria-label', row.title);
+    if (idx === state.wingIndex) row.setAttribute('aria-current', 'step');
+    row.onclick = () => onSelectWing(idx);
     list.appendChild(row);
   });
+  ui('btn-next-wing').textContent = state.wingIndex === MUSEUM_WINGS.length - 1 ? 'NEW RUN ↵' : 'NEXT WING ↵';
 }
 
 function renderWingPicker(selectedIndex, onSelect) {
