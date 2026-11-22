@@ -3,7 +3,10 @@
 import { STAGE_H, STAGE_W } from './levels.js';
 import { notifySound } from './patrol.js';
 
-export function updateStealthDetection(state, input, dt, sound, onRibbon, onWingClear) {
+export { updateStealthDetection };
+export { evaluateStealthSurface, throwBrassCoinLure, deployVelvetVeilSmoke, douseNearbySconce, useBrassFloorVent, claimSolisOpal, computeMods, updateEffects, spawnSparks };
+
+function updateStealthDetection(state, input, dt, sound, onRibbon, onWingClear) {
   const p = state.player;
   let mx = 0, my = 0;
   if (input.keys.has('KeyW') || input.keys.has('ArrowUp')) my -= 1;
@@ -65,7 +68,7 @@ export function updateStealthDetection(state, input, dt, sound, onRibbon, onWing
   }
 }
 
-export function douseNearbySconce(state, sound, onRibbon) {
+function douseNearbySconce(state, sound, onRibbon) {
   const lamp = findNearestLitSconce(state, 120);
   if (!lamp) {
     if (onRibbon) onRibbon('MOVE NEAR A LIT BRASS SCONCE TO DOUSE [R]', false, 1.8);
@@ -100,7 +103,7 @@ export function douseNearbySconce(state, sound, onRibbon) {
   return true;
 }
 
-export function useBrassFloorVent(state, sound, onRibbon) {
+function useBrassFloorVent(state, sound, onRibbon) {
   const vents = state.wing.vents || [];
   const idx = findNearestVent(state, 54);
   if (idx < 0) {
@@ -121,7 +124,7 @@ export function useBrassFloorVent(state, sound, onRibbon) {
   return true;
 }
 
-export function deployVelvetVeilSmoke(state, sound, onRibbon) {
+function deployVelvetVeilSmoke(state, sound, onRibbon) {
   if (state.veils <= 0) { if (onRibbon) onRibbon('NO VELVET VEIL CHARGES LEFT', false); return false; }
   const p = state.player;
   state.veils -= 1;
@@ -134,7 +137,7 @@ export function deployVelvetVeilSmoke(state, sound, onRibbon) {
   return true;
 }
 
-export function throwBrassCoinLure(state, tx, ty, sound, onRibbon) {
+function throwBrassCoinLure(state, tx, ty, sound, onRibbon) {
   if (state.coins <= 0) { if (onRibbon) onRibbon('NO BRASS COINS LEFT', false); return false; }
   const p = state.player;
   const maxD = 235 * state.mods.throwRangeMult;
@@ -151,7 +154,7 @@ export function throwBrassCoinLure(state, tx, ty, sound, onRibbon) {
   return true;
 }
 
-export function computeMods(perks) {
+function computeMods(perks) {
   const m = {
     speedMult: 1, crouchSpeedMult: 1, noiseMult: 1, lureRadiusMult: 1,
     lureHoldBonus: 0, shadowLinger: 0, suspicionMult: 1, recoveryMult: 1,
@@ -162,7 +165,7 @@ export function computeMods(perks) {
   return m;
 }
 
-export function evaluateStealthSurface(state, dt) {
+function evaluateStealthSurface(state, dt) {
   const p = state.player;
   const w = state.wing;
   p.onCarpet = (w.carpets || []).some((c) => p.x >= c.x && p.x <= c.x + c.w && p.y >= c.y && p.y <= c.y + c.h);
@@ -200,7 +203,7 @@ export function evaluateStealthSurface(state, dt) {
   p.exposure = p.inVeil ? 0.06 : p.inDoused ? 0.08 : p.inAlcove || (settee && p.crouched) ? 0.12 : p.inShadow ? 0.18 : Math.min(1, 0.36 + lightAmt * 0.64);
 }
 
-export function claimSolisOpal(state, sound, onRibbon) {
+function claimSolisOpal(state, sound, onRibbon) {
   state.opalTaken = true;
   state.relicsTaken += 1;
   const pts = Math.round(1200 * state.mods.scoreMult);
@@ -211,7 +214,7 @@ export function claimSolisOpal(state, sound, onRibbon) {
   if (onRibbon) onRibbon(`THE SOLIS OPAL LIFTED (+${pts}) — BOARD THE BRASS ELEVATOR!`, false);
 }
 
-export function spawnSparks(state, x, y, color, count) {
+function spawnSparks(state, x, y, color, count) {
   for (let i = 0; i < count; i++) {
     const a = (Math.PI * 2 * i) / count + Math.random() * 0.4;
     const sp = 28 + Math.random() * 64;
@@ -219,7 +222,7 @@ export function spawnSparks(state, x, y, color, count) {
   }
 }
 
-export function updateEffects(state, dt, sound) {
+function updateEffects(state, dt, sound) {
   for (let i = state.coinsInFlight.length - 1; i >= 0; i--) {
     const c = state.coinsInFlight[i];
     c.t += dt;

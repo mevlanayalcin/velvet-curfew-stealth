@@ -1,11 +1,14 @@
 // Velvet Curfew — 5 Handcrafted Art-Deco Grand Museum Wings (1024x648 HD), Guard Archetypes & Perks
 
-export const STAGE_W = 1024;
-export const STAGE_H = 648;
+export { MUSEUM_WINGS, GUARD_TYPES };
+export { STEALTH_PERKS, STAGE_W, STAGE_H };
+
+const STAGE_W = 1024;
+const STAGE_H = 648;
 const SX = STAGE_W / 820;
 const SY = STAGE_H / 576;
 
-export const STEALTH_PERKS = [
+const STEALTH_PERKS = [
   { id: 'felt-soles', name: 'Felt Soles', tag: 'ACOUSTIC', desc: '-45% marble footstep noise & +15% crouch speed.', apply: (m) => { m.noiseMult *= 0.55; m.crouchSpeedMult *= 1.15; } },
   { id: 'brass-resonator', name: 'Brass Resonator', tag: 'LURE', desc: '+2 Coin Lures, +35% ripple reach & longer curiosity.', apply: (m) => { m.bonusCoins += 2; m.lureRadiusMult *= 1.35; m.lureHoldBonus += 2.0; } },
   { id: 'velvet-cowl', name: 'Velvet Cowl', tag: 'SHADOW', desc: 'Alcove concealment lingers 1.5s & +1 Velvet Veil.', apply: (m) => { m.shadowLinger += 1.5; m.bonusVeils += 1; } },
@@ -14,7 +17,7 @@ export const STEALTH_PERKS = [
   { id: 'silk-gloves', name: 'Silk Gloves', tag: 'AGILITY', desc: '+18% coin toss arc & +12% velvet glide speed.', apply: (m) => { m.throwRangeMult *= 1.18; m.speedMult *= 1.12; } },
 ];
 
-export const GUARD_TYPES = {
+const GUARD_TYPES = {
   curator: {
     id: 'curator', name: 'Night Curator',
     speed: 68, chaseSpeed: 120, visionRange: 232, fov: 0.72, hearMult: 1.0, suspicionRate: 0.85,
@@ -337,9 +340,12 @@ const RAW_WINGS = [
     ],
     cameras: [
       { x: 180, y: 180, baseAngle: 0.78, sweep: 0.62, speed: 0.76, range: 182, fov: 0.56 },
-      { x: 640, y: 396, baseAngle: -2.35, sweep: 0.62, speed: 0.76, range: 182, fov: 0.56 },
+      { x: 640, y: 394, baseAngle: -2.35, sweep: 0.62, speed: 0.76, range: 182, fov: 0.56 },
     ],
-    tripwires: [{ x1: 660, y1: 396, x2: 800, y2: 396, period: 4.0, duty: 0.6, phase: 0 }],
+    tripwires: [
+      { x1: 660, y1: 396, x2: 800, y2: 396, period: 4.0, duty: 0.6, phase: 0 },
+      { x1: 20, y1: 180, x2: 160, y2: 180, period: 4.0, duty: 0.6, phase: 2.0 },
+    ],
     guards: [
       { type: 'inspector', x: 260, y: 132, angle: 0, waypoints: [{ x: 180, y: 132 }, { x: 640, y: 132 }] },
       { type: 'inspector', x: 560, y: 454, angle: 3.14, waypoints: [{ x: 640, y: 454 }, { x: 180, y: 454 }] },
@@ -378,7 +384,7 @@ const RAW_WINGS = [
     ],
     cameras: [
       { x: 248, y: 158, baseAngle: 0.78, sweep: 0.65, speed: 0.8, range: 186, fov: 0.56 },
-      { x: 572, y: 418, baseAngle: -2.35, sweep: 0.65, speed: 0.8, range: 186, fov: 0.56 },
+      { x: 570, y: 418, baseAngle: -2.35, sweep: 0.65, speed: 0.8, range: 186, fov: 0.56 },
     ],
     tripwires: [{ x1: 248, y1: 146, x2: 572, y2: 146, period: 4.4, duty: 0.58, phase: 0 }],
     guards: [
@@ -390,4 +396,4 @@ const RAW_WINGS = [
   },
 ];
 
-export const MUSEUM_WINGS = RAW_WINGS.map(scaleWingToHD);
+const MUSEUM_WINGS = RAW_WINGS.map(scaleWingToHD);

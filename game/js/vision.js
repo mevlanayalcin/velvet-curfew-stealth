@@ -1,8 +1,11 @@
 // Velvet Curfew — True 2D Raycast Visibility Polygon & Sightline Occlusion Engine
 
+export { castRay, computeRaycastVisionCone };
+export { hasLineOfSight, isPointInVisionCone, buildOccluderSegments, angleDiff, normalizeAngle, pointToSegmentDist };
+
 const EPS = 0.0008;
 
-export function computeRaycastVisionCone(ox, oy, facing, fov, range, geom, veils = []) {
+function computeRaycastVisionCone(ox, oy, facing, fov, range, geom, veils = []) {
   const half = fov * 0.5;
   const angles = [];
   for (let i = 0; i <= 18; i++) angles.push(-half + (fov * i) / 18);
@@ -62,7 +65,7 @@ export function computeRaycastVisionCone(ox, oy, facing, fov, range, geom, veils
   return pts;
 }
 
-export function buildOccluderSegments(obstacles) {
+function buildOccluderSegments(obstacles) {
   const tall = { segs: [], corners: [] }, low = { segs: [], corners: [] };
   for (const r of obstacles) {
     const { segs, corners } = r.kind === 'settee' ? low : tall;
@@ -73,7 +76,7 @@ export function buildOccluderSegments(obstacles) {
   return { ...tall, crouched: { segs: tall.segs.concat(low.segs), corners: tall.corners.concat(low.corners) } };
 }
 
-export function isPointInVisionCone(ox, oy, facing, fov, range, tx, ty, geom, veils = []) {
+function isPointInVisionCone(ox, oy, facing, fov, range, tx, ty, geom, veils = []) {
   const dx = tx - ox, dy = ty - oy;
   const dist = Math.hypot(dx, dy);
   if (dist > range) return false;
@@ -81,13 +84,13 @@ export function isPointInVisionCone(ox, oy, facing, fov, range, tx, ty, geom, ve
   return hasLineOfSight(ox, oy, tx, ty, geom, veils);
 }
 
-export function normalizeAngle(a) {
+function normalizeAngle(a) {
   while (a > Math.PI) a -= Math.PI * 2;
   while (a < -Math.PI) a += Math.PI * 2;
   return a;
 }
 
-export function angleDiff(a, b) {
+function angleDiff(a, b) {
   return normalizeAngle(a - b);
 }
 
@@ -114,7 +117,7 @@ function rayCircleT(ox, oy, dx, dy, cx, cy, r) {
   return t >= 0 ? t : Infinity;
 }
 
-export function castRay(ox, oy, angle, maxDist, segs, veils = []) {
+function castRay(ox, oy, angle, maxDist, segs, veils = []) {
   const dx = Math.cos(angle), dy = Math.sin(angle);
   let best = maxDist, blocker = null;
   for (let i = 0; i < segs.length; i++) {
@@ -133,14 +136,14 @@ export function castRay(ox, oy, angle, maxDist, segs, veils = []) {
   return { x: ox + dx * best, y: oy + dy * best, dist: best, blocker };
 }
 
-export function hasLineOfSight(ox, oy, tx, ty, geom, veils = []) {
+function hasLineOfSight(ox, oy, tx, ty, geom, veils = []) {
   const dx = tx - ox, dy = ty - oy;
   const dist = Math.hypot(dx, dy);
   if (dist < 1) return true;
   return castRay(ox, oy, Math.atan2(dy, dx), dist, geom.segs, veils).dist >= dist - 3;
 }
 
-export function pointToSegmentDist(px, py, x1, y1, x2, y2) {
+function pointToSegmentDist(px, py, x1, y1, x2, y2) {
   const dx = x2 - x1, dy = y2 - y1;
   const lenSq = dx * dx + dy * dy;
   if (lenSq < 1e-6) return Math.hypot(px - x1, py - y1);

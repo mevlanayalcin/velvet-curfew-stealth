@@ -2,16 +2,19 @@
 
 import { STAGE_H, STAGE_W } from './levels.js';
 
+export { renderMuseumStage };
+export { drawRaycastCones, drawDynamicLampPools, drawGuardFootstepSonar };
+
 const floorCache = new Map();
 let shadowHatch;
 
-export function renderMuseumStage(ctx, state, nowSec) {
+function renderMuseumStage(ctx, state, nowSec) {
   const w = state.wing;
   ctx.clearRect(0, 0, STAGE_W, STAGE_H);
   ctx.drawImage(getMuseumFloor(w), 0, 0);
   for (const a of w.alcoves || []) drawShadowAlcove(ctx, a);
   drawDynamicLampPools(ctx, state, nowSec);
-  drawBrassVents(ctx, w.vents || [], state);
+  drawBrassVents(ctx, w.vents || [], state, nowSec);
   for (const ar of w.arches || []) drawArtDecoArch(ctx, ar);
   if (state.mode !== 'debrief') drawCoverBlindSpots(ctx, state);
   for (const o of w.obstacles) if (o.kind === 'settee') drawVelvetSettee(ctx, o);
@@ -22,7 +25,7 @@ export function renderMuseumStage(ctx, state, nowSec) {
   drawSconceFixtures(ctx, state);
   drawOpalAndRelics(ctx, state, nowSec);
   drawBrassElevator(ctx, state, nowSec);
-  for (const sm of state.veilsActive) drawVelvetVeil(ctx, sm, nowSec);
+  for (const sm of state.veilsActive) drawVelvetVeil(ctx, sm, nowSec, state.player.inVeil && veilHolds(sm, state.player));
   drawTacticalOverlays(ctx, state, nowSec);
   if (state.mode === 'debrief' && state.debriefTrail) drawGoldenTrail(ctx, state.debriefTrail);
   if (state.mode === 'play' && !state.shotMode && state.aim.active && state.coins > 0) drawAimArc(ctx, state);
@@ -43,7 +46,7 @@ export function renderMuseumStage(ctx, state, nowSec) {
   ctx.globalAlpha = 1;
 }
 
-export function drawDynamicLampPools(ctx, state, nowSec) {
+function drawDynamicLampPools(ctx, state, nowSec) {
   for (const l of state.lights) {
     if (l.lit) {
       const rad = l.r * (1 + Math.sin(nowSec * 1.7 + l.x * 0.02) * 0.015);
@@ -74,7 +77,7 @@ export function drawDynamicLampPools(ctx, state, nowSec) {
   }
 }
 
-export function drawGuardFootstepSonar(ctx, steps) {
+function drawGuardFootstepSonar(ctx, steps) {
   if (!steps.length) return;
   ctx.save();
   for (const s of steps) {
@@ -90,7 +93,7 @@ export function drawGuardFootstepSonar(ctx, steps) {
   ctx.restore();
 }
 
-export function drawRaycastCones(ctx, state) {
+function drawRaycastCones(ctx, state) {
   for (const cam of state.cameras) drawCameraCone(ctx, cam);
   for (const g of state.guards) drawGuardCone(ctx, g);
 }
@@ -514,14 +517,14 @@ function drawGuardCone(ctx, g) {
   const gr = ctx.createRadialGradient(g.x, g.y, 6, g.x, g.y, g.spec.visionRange);
   let stroke = '#62e3ff';
   if (g.state === 'BREACH') {
-    gr.addColorStop(0, 'rgba(255, 65, 85, 0.44)');
-    gr.addColorStop(0.62, 'rgba(235, 35, 65, 0.26)');
-    gr.addColorStop(1, 'rgba(180, 18, 45, 0.08)');
-    stroke = '#ff5568';
+    gr.addColorStop(0, 'rgba(255, 58, 80, 0.60)');
+    gr.addColorStop(0.62, 'rgba(240, 30, 62, 0.40)');
+    gr.addColorStop(1, 'rgba(196, 18, 48, 0.20)');
+    stroke = '#ff4d63';
   } else if (g.state === 'SWEEPING') {
-    gr.addColorStop(0, 'rgba(251, 146, 60, 0.44)');
-    gr.addColorStop(0.62, 'rgba(192, 132, 252, 0.24)');
-    gr.addColorStop(1, 'rgba(126, 34, 206, 0.06)');
+    gr.addColorStop(0, 'rgba(251, 146, 60, 0.56)');
+    gr.addColorStop(0.55, 'rgba(214, 120, 200, 0.36)');
+    gr.addColorStop(1, 'rgba(147, 51, 234, 0.20)');
     stroke = '#fdba74';
   } else if (g.state === 'CURIOUS') {
     gr.addColorStop(0, 'rgba(255, 195, 50, 0.42)');
@@ -538,42 +541,60 @@ function drawGuardCone(ctx, g) {
   ctx.fillStyle = gr;
   ctx.fill();
   ctx.strokeStyle = stroke;
-  ctx.lineWidth = g.state === 'PATROL' ? 1.85 : 2.2;
+  ctx.lineWidth = g.state === 'PATROL' ? 1.85 : g.state === 'CURIOUS' ? 2.2 : 2.8;
   ctx.stroke();
   ctx.restore();
 }
 
-function drawBrassVents(ctx, vents, state) {
+function drawBrassVents(ctx, vents, state, nowSec) {
   if (!vents.length) return;
+  const live = state.mode !== 'debrief';
+  const open = live && state.player.ventInRange;
   ctx.save();
   // Subtle blueprint subterranean duct connector line between linked grates
-  if (vents.length >= 2 && state.mode !== 'debrief') {
-    ctx.strokeStyle = 'rgba(45, 212, 191, 0.16)';
-    ctx.setLineDash([4, 7]);
-    ctx.lineWidth = 1.2;
+  if (vents.length >= 2 && live) {
     ctx.beginPath();
     ctx.moveTo(vents[0].x, vents[0].y);
     ctx.lineTo(vents[1].x, vents[1].y);
+    if (open) {
+      ctx.strokeStyle = 'rgba(34, 211, 238, 0.22)'; ctx.lineWidth = 10; ctx.stroke();
+      ctx.strokeStyle = 'rgba(165, 243, 252, 0.95)'; ctx.lineWidth = 2.8;
+      ctx.setLineDash([11, 8]); ctx.lineDashOffset = -nowSec * 26;
+    } else {
+      ctx.strokeStyle = 'rgba(45, 212, 191, 0.16)'; ctx.lineWidth = 1.2;
+      ctx.setLineDash([4, 7]);
+    }
     ctx.stroke();
-    ctx.setLineDash([]);
+    ctx.setLineDash([]); ctx.lineDashOffset = 0;
   }
   for (const v of vents) {
+    const here = open && Math.hypot(state.player.x - v.x, state.player.y - v.y) < 54;
     ctx.save();
     ctx.translate(v.x, v.y);
+    if (open) {
+      const glow = ctx.createRadialGradient(0, 0, 5, 0, 0, 50);
+      glow.addColorStop(0, 'rgba(34, 211, 238, 0.66)');
+      glow.addColorStop(0.5, 'rgba(34, 211, 238, 0.24)');
+      glow.addColorStop(1, 'rgba(34, 211, 238, 0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath(); ctx.arc(0, 0, 50, 0, Math.PI * 2); ctx.fill();
+      const u = (nowSec * 0.8) % 1;
+      ctx.strokeStyle = `rgba(165, 243, 252, ${0.85 - u * 0.6})`; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 0, 21 + u * 15, 0, Math.PI * 2); ctx.stroke();
+    }
     ctx.fillStyle = '#121826';
-    ctx.strokeStyle = '#c9a252';
-    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = open ? '#a5f3fc' : '#c9a252';
+    ctx.lineWidth = open ? 2.6 : 1.6;
     ctx.fillRect(-13, -11, 26, 22);
     ctx.strokeRect(-13, -11, 26, 22);
     // Art-Deco slotted brass ventilation louvers
-    ctx.strokeStyle = '#5eead4';
+    ctx.strokeStyle = open ? '#ecfeff' : '#5eead4';
     ctx.lineWidth = 1.4;
     for (const sy of [-6, -2, 2, 6]) {
       ctx.beginPath(); ctx.moveTo(-9, sy); ctx.lineTo(9, sy); ctx.stroke();
     }
-    if (state.mode !== 'debrief') {
-      drawTag(ctx, 0, 19, 'VENT [V]', '#5eead4', 'rgba(9, 20, 28, 0.92)', '#2dd4bf', false);
-    }
+    if (here) drawTag(ctx, 0, 19, 'VENT [V]', '#03222b', '#67e8f9', '#ecfeff', false);
+    else if (live) drawTag(ctx, 0, 19, 'VENT [V]', '#5eead4', 'rgba(9, 20, 28, 0.92)', '#2dd4bf', false);
     ctx.restore();
   }
   ctx.restore();
@@ -671,89 +692,118 @@ function drawOpalAndRelics(ctx, state, nowSec) {
 
 function drawBrassElevator(ctx, state, nowSec) {
   const el = state.wing.elevator;
-  const open = state.opalTaken;
   const pulse = 0.5 + 0.5 * Math.sin(nowSec * 4.0);
 
   ctx.save();
   ctx.translate(el.x, el.y);
+  if (state.opalTaken) {
+    drawOpenElevator(ctx, el, nowSec);
+    ctx.restore();
+    return;
+  }
   const glow = ctx.createRadialGradient(0, 0, 4, 0, 0, 46 + pulse * 6);
-  glow.addColorStop(0, open ? 'rgba(52, 211, 153, 0.72)' : 'rgba(201, 162, 82, 0.34)');
+  glow.addColorStop(0, 'rgba(201, 162, 82, 0.34)');
   glow.addColorStop(1, 'rgba(52, 211, 153, 0)');
   ctx.fillStyle = glow;
   ctx.beginPath(); ctx.arc(0, 0, 48, 0, Math.PI * 2); ctx.fill();
 
-  if (open) {
-    // Luminous outer emerald frame when unlocked!
-    ctx.strokeStyle = 'rgba(52, 211, 153, 0.85)';
-    ctx.lineWidth = 2.2;
-    ctx.strokeRect(-26, -24, 52, 48);
-  }
-
-  ctx.fillStyle = open ? '#0e3628' : '#241c13';
-  ctx.strokeStyle = open ? '#4ade80' : '#e5be67';
-  ctx.lineWidth = open ? 2.6 : 2;
+  ctx.fillStyle = '#241c13';
+  ctx.strokeStyle = '#e5be67';
+  ctx.lineWidth = 2;
   ctx.fillRect(-21, -19, 42, 38);
   ctx.strokeRect(-21, -19, 42, 38);
 
   // Semicircular brass floor dial
-  ctx.strokeStyle = open ? '#86efac' : '#f0d084';
+  ctx.strokeStyle = '#f0d084';
   ctx.lineWidth = 1.4;
   ctx.beginPath(); ctx.arc(0, -6, 12, Math.PI, 0); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(open ? 7 : -6, -15); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(-6, -15); ctx.stroke();
 
-  if (open) {
-    // Open gilded elevator doors
-    ctx.strokeStyle = 'rgba(134, 239, 172, 0.8)';
-    ctx.lineWidth = 1.6;
-    for (const bx of [-15, -11, 11, 15]) {
-      ctx.beginPath(); ctx.moveTo(bx, -3); ctx.lineTo(bx, 16); ctx.stroke();
-    }
-    drawTag(ctx, 0, 34, 'EXIT · OPEN', '#6ee7b7', 'rgba(8, 30, 22, 0.97)', '#34d399', false, true);
-  } else {
-    // Closed vertical bars + clear brass padlock badge
-    ctx.strokeStyle = 'rgba(201, 162, 82, 0.65)';
-    ctx.lineWidth = 1.3;
-    for (const bx of [-11, -4, 4, 11]) {
-      ctx.beginPath(); ctx.moveTo(bx, -3); ctx.lineTo(bx, 16); ctx.stroke();
-    }
-    ctx.fillStyle = '#0d1018';
-    ctx.strokeStyle = '#f6d88a';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(0, 4, 4.5, Math.PI, 0); ctx.stroke();
-    ctx.fillRect(-5.5, 4, 11, 8);
-    ctx.strokeRect(-5.5, 4, 11, 8);
-    drawTag(ctx, 0, 36, 'EXIT · LOCKED', '#ffe5a5', '#251c0d', '#e9bf65', false, true);
+  // Closed vertical bars + clear brass padlock badge
+  ctx.strokeStyle = 'rgba(201, 162, 82, 0.65)';
+  ctx.lineWidth = 1.3;
+  for (const bx of [-11, -4, 4, 11]) {
+    ctx.beginPath(); ctx.moveTo(bx, -3); ctx.lineTo(bx, 16); ctx.stroke();
   }
+  ctx.fillStyle = '#0d1018';
+  ctx.strokeStyle = '#f6d88a';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(0, 4, 4.5, Math.PI, 0); ctx.stroke();
+  ctx.fillRect(-5.5, 4, 11, 8);
+  ctx.strokeRect(-5.5, 4, 11, 8);
+  drawTag(ctx, 0, 36, 'EXIT · LOCKED', '#ffe5a5', '#251c0d', '#e9bf65', false, true);
   ctx.restore();
 }
 
-function drawVelvetVeil(ctx, sm, nowSec) {
-  ctx.save();
-  ctx.globalAlpha = sm.alpha;
-  const lobes = [
-    { ox: 0, oy: 0, s: 1.0 },
-    { ox: Math.cos(nowSec * 0.9) * 16, oy: Math.sin(nowSec * 0.8) * 11, s: 0.76 },
-    { ox: -16, oy: 9, s: 0.7 },
-    { ox: 15, oy: -10, s: 0.68 },
-  ];
-  for (const lb of lobes) {
-    const r = sm.r * lb.s;
-    const gr = ctx.createRadialGradient(sm.x + lb.ox, sm.y + lb.oy, 4, sm.x + lb.ox, sm.y + lb.oy, r);
-    gr.addColorStop(0, 'rgba(167, 139, 250, 0.85)');
-    gr.addColorStop(0.45, 'rgba(91, 52, 148, 0.76)');
-    gr.addColorStop(0.8, 'rgba(42, 24, 78, 0.52)');
-    gr.addColorStop(1, 'rgba(22, 14, 46, 0)');
-    ctx.fillStyle = gr;
-    ctx.beginPath(); ctx.arc(sm.x + lb.ox, sm.y + lb.oy, r, 0, Math.PI * 2); ctx.fill();
+function drawOpenElevator(ctx, el, nowSec) {
+  const w = el.r + 11, h = 30;
+  const spill = ctx.createRadialGradient(0, 0, 8, 0, 0, 112);
+  spill.addColorStop(0, 'rgba(60, 255, 176, 0.80)');
+  spill.addColorStop(0.36, 'rgba(22, 224, 142, 0.42)');
+  spill.addColorStop(0.7, 'rgba(16, 185, 129, 0.14)');
+  spill.addColorStop(1, 'rgba(16, 185, 129, 0)');
+  ctx.fillStyle = spill;
+  ctx.beginPath(); ctx.arc(0, 0, 112, 0, Math.PI * 2); ctx.fill();
+  for (const k of [0, 0.5]) {
+    const u = (nowSec * 0.55 + k) % 1;
+    ctx.strokeStyle = `rgba(110, 255, 196, ${0.62 * (1 - u)})`; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.arc(0, 0, w + 8 + u * 46, 0, Math.PI * 2); ctx.stroke();
   }
-  // Silver-violet mist outline + tiny silver flecks
-  ctx.strokeStyle = 'rgba(221, 214, 254, 0.52)';
-  ctx.setLineDash([5, 5]);
-  ctx.lineWidth = 1.3;
-  ctx.beginPath(); ctx.arc(sm.x, sm.y, sm.r * 0.88, 0, Math.PI * 2); ctx.stroke();
-  ctx.setLineDash([]);
-  drawTag(ctx, sm.x, sm.y - sm.r * 0.65, 'VELVET VEIL', '#e9d5ff', 'rgba(26, 15, 48, 0.9)', '#b794f4');
+
+  // Luminous outer emerald frame when unlocked!
+  ctx.shadowColor = '#34ffaa'; ctx.shadowBlur = 20;
+  ctx.fillStyle = '#063826'; ctx.strokeStyle = '#6dffbf'; ctx.lineWidth = 3.6;
+  ctx.beginPath(); ctx.roundRect(-w, -h, w * 2, h * 2, 5); ctx.fill(); ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Open gilded elevator doors
+  const car = ctx.createLinearGradient(0, -h, 0, h);
+  car.addColorStop(0, '#d5ffec'); car.addColorStop(0.5, '#4dedaa'); car.addColorStop(1, '#0f9d68');
+  ctx.fillStyle = car;
+  ctx.fillRect(-w + 15, -h + 7, w * 2 - 30, h * 2 - 13);
+  ctx.fillStyle = '#0a5238'; ctx.strokeStyle = '#a7f3d0'; ctx.lineWidth = 1.4;
+  for (const dx of [-w + 5, w - 14]) {
+    ctx.fillRect(dx, -h + 7, 9, h * 2 - 13); ctx.strokeRect(dx, -h + 7, 9, h * 2 - 13);
+  }
+  ctx.strokeStyle = '#064e36'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const cy of [-5, 9]) {
+    ctx.beginPath(); ctx.moveTo(-11, cy + 6); ctx.lineTo(0, cy - 4); ctx.lineTo(11, cy + 6); ctx.stroke();
+  }
+  const marquee = el.y - h - 32 >= 20 ? -h - 17 : h + 17;
+  drawTag(ctx, 0, marquee, 'EXIT · OPEN', '#eafff5', '#05402b', '#6dffbf', false, true, 0, '#34ffaa');
+}
+
+const veilHolds = (sm, p) => sm.alpha > 0.22 && Math.hypot(p.x - sm.x, p.y - sm.y) <= sm.r * 0.92;
+
+function drawVelvetVeil(ctx, sm, nowSec, hiding) {
+  const { x, y } = sm, rim = sm.r * 0.9, a = Math.min(1, sm.alpha / 0.9);
+  ctx.save();
+  const haze = ctx.createRadialGradient(x, y, sm.r * 0.12, x, y, sm.r);
+  haze.addColorStop(0, `rgba(99, 76, 233, ${0.18 * a})`);
+  haze.addColorStop(0.7, `rgba(124, 77, 255, ${0.32 * a})`);
+  haze.addColorStop(0.9, `rgba(168, 120, 255, ${0.38 * a})`);
+  haze.addColorStop(1, 'rgba(88, 40, 190, 0)');
+  ctx.fillStyle = haze;
+  ctx.beginPath(); ctx.arc(x, y, sm.r, 0, Math.PI * 2); ctx.fill();
+
+  ctx.lineCap = 'round';
+  for (let k = 0; k < 3; k++) {
+    const rr = rim * (0.36 + k * 0.2), spin = nowSec * (k % 2 ? -0.7 : 0.55) + k * 2.2;
+    ctx.strokeStyle = `rgba(221, 214, 254, ${(0.56 - k * 0.1) * a})`;
+    ctx.lineWidth = 2.6 - k * 0.5;
+    ctx.beginPath(); ctx.arc(x, y, rr, spin, spin + 1.9); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, rr, spin + Math.PI, spin + Math.PI + 1.15); ctx.stroke();
+  }
+
+  // Silver-violet mist outline, dashed where sightlines break
+  ctx.lineCap = 'butt';
+  ctx.strokeStyle = `rgba(167, 139, 250, ${0.36 * a})`; ctx.lineWidth = 9;
+  ctx.beginPath(); ctx.arc(x, y, rim, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = `rgba(237, 233, 254, ${0.98 * a})`; ctx.lineWidth = 2.6;
+  ctx.setLineDash([9, 6]); ctx.lineDashOffset = -nowSec * 14;
+  ctx.stroke();
   ctx.restore();
+  if (!hiding) drawTag(ctx, x, y - sm.r - 8, 'VELVET VEIL', '#e9d5ff', 'rgba(26, 15, 48, 0.9)', '#b794f4');
 }
 
 function drawTacticalOverlays(ctx, state, nowSec) {
@@ -824,23 +874,30 @@ function drawTacticalOverlays(ctx, state, nowSec) {
     drawTag(ctx, x, y - 34, 'CURFEW BELL!', '#ffe4e6', 'rgba(76, 10, 24, 0.95)', '#fb7185');
   }
 
-  // 3. Ghost Silhouette Marker at LAST GLIMPSE
+  // 3. Ghost Silhouette Marker at LAST SEEN
   if (state.lastGlimpse) {
     const lg = state.lastGlimpse;
     ctx.save();
     ctx.translate(lg.x, lg.y);
-    ctx.strokeStyle = 'rgba(186, 230, 253, 0.85)';
-    ctx.setLineDash([4, 3]);
-    ctx.lineWidth = 1.6;
-    ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
-    ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.fill();
+    const halo = ctx.createRadialGradient(0, 0, 4, 0, 0, 36);
+    halo.addColorStop(0, 'rgba(125, 211, 252, 0.40)');
+    halo.addColorStop(1, 'rgba(125, 211, 252, 0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(0, 0, 36, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(224, 242, 254, 0.96)';
+    ctx.setLineDash([6, 4]);
+    ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI * 2); ctx.stroke();
     ctx.rotate(lg.angle || 0);
-    ctx.fillStyle = 'rgba(224, 242, 254, 0.75)';
-    ctx.beginPath(); ctx.moveTo(6, 0); ctx.lineTo(-3, -4); ctx.lineTo(-1, 0); ctx.lineTo(-3, 4); ctx.closePath(); ctx.fill();
+    ctx.scale(1.25, 1.25);
+    ctx.setLineDash([3, 2.4]);
+    ctx.lineWidth = 1.5;
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.24)';
+    traceTrenchCoat(ctx);
+    ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(-1.5, 0, 7.6, 8.8, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.restore();
-    drawTag(ctx, lg.x, lg.y + 24, 'LAST GLIMPSE', '#bae6fd', 'rgba(13, 24, 42, 0.94)', '#38bdf8');
+    drawTag(ctx, lg.x, lg.y + 38, 'LAST SEEN', '#e0f2fe', 'rgba(13, 24, 42, 0.94)', '#7dd3fc');
   }
 }
 
@@ -891,6 +948,13 @@ function drawCameraDome(ctx, cam) {
   ctx.restore();
 }
 
+function traceTrenchCoat(ctx) {
+  ctx.beginPath();
+  ctx.moveTo(4, -12.5); ctx.lineTo(-9, -10.5); ctx.lineTo(-11, 0); ctx.lineTo(-9, 10.5); ctx.lineTo(4, 12.5);
+  ctx.quadraticCurveTo(9, 0, 4, -12.5);
+  ctx.closePath();
+}
+
 function drawInfiltrator(ctx, state) {
   const p = state.player;
   const concealed = p.inVeil || (p.inSettee && p.crouched);
@@ -924,10 +988,7 @@ function drawInfiltrator(ctx, state) {
   ctx.fillStyle = concealed ? '#082423' : '#101d33';
   ctx.strokeStyle = concealed ? '#a7f3d0' : '#f6efe2';
   ctx.lineWidth = 2.1;
-  ctx.beginPath();
-  ctx.moveTo(4, -12.5); ctx.lineTo(-9, -10.5); ctx.lineTo(-11, 0); ctx.lineTo(-9, 10.5); ctx.lineTo(4, 12.5);
-  ctx.quadraticCurveTo(9, 0, 4, -12.5);
-  ctx.closePath();
+  traceTrenchCoat(ctx);
   ctx.fill(); ctx.stroke();
 
   // Wide-brimmed fedora crown & emerald/gold ribbon band
@@ -943,16 +1004,20 @@ function drawInfiltrator(ctx, state) {
   ctx.closePath(); ctx.fill();
   ctx.restore();
 
-  if (concealed && state.detectionState !== 'BREACH') {
-    const lbl = p.inVeil ? 'VELVET VEIL' : 'YOU · HIDDEN';
-    const side = p.y < STAGE_H - 64 ? 1 : -1;
-    ctx.fillStyle = '#b3ffdd';
+  const veiled = p.inVeil && state.veilsActive.find((sm) => veilHolds(sm, p));
+  if (veiled) {
+    const out = Math.abs(p.x - veiled.x) > 6 ? Math.sign(p.x - veiled.x) : 1;
+    drawTag(ctx, p.x, p.y, 'VEIL · CONCEALED', '#06291e', '#8cf5cd', '#f3e8ff', true, 'pill', out, '#a78bfa');
+  } else if (concealed || (p.inDoused && state.detectionState !== 'BREACH')) {
+    const lamp = !concealed && state.lights.find((l) => !l.lit && Math.hypot(p.x - l.x, p.y - l.y) < l.r * 0.74);
+    const side = p.y >= STAGE_H - 64 || (lamp && lamp.y > p.y) ? -1 : 1;
+    ctx.fillStyle = concealed ? '#b3ffdd' : '#bae6fd';
     ctx.beginPath(); ctx.moveTo(p.x, p.y + 21 * side);
     ctx.lineTo(p.x - 5, p.y + 31 * side); ctx.lineTo(p.x + 5, p.y + 31 * side); ctx.closePath(); ctx.fill();
-    drawTag(ctx, p.x, p.y + 42 * side, lbl, '#06291e', '#78ecc0', '#c1ffe1', true, true);
+    if (concealed) drawTag(ctx, p.x, p.y + 42 * side, 'YOU · HIDDEN', '#06291e', '#78ecc0', '#c1ffe1', true, 'pill');
+    else drawTag(ctx, p.x, p.y + 42 * side, 'DEEP SHADOW', '#04202f', '#7dd3fc', '#e0f2fe', true, 'pill');
   } else if (shadowed && state.detectionState !== 'BREACH') {
-    const lbl = p.inDoused ? 'DEEP SHADOW' : 'SHADOW';
-    drawTag(ctx, p.x, p.y + 25, lbl, '#7dd3fc', 'rgba(9, 20, 34, 0.94)', '#38bdf8', true, false);
+    drawTag(ctx, p.x, p.y + 25, 'SHADOW', '#7dd3fc', 'rgba(9, 20, 34, 0.94)', '#38bdf8', true, false);
   }
 
   if (state.mode === 'play' && !state.shotMode && p.lampInRange) {
@@ -1031,7 +1096,7 @@ function drawAimArc(ctx, state) {
   ctx.restore();
 }
 
-function drawTag(ctx, x, y, text, fg, bg, border, clamp = true, hero = false, dock = 0) {
+function drawTag(ctx, x, y, text, fg, bg, border, clamp = true, hero = false, dock = 0, glow = null) {
   ctx.save();
   ctx.font = hero ? 'bold 16px "DejaVu Sans Condensed", sans-serif' : '800 10px ui-monospace, SFMono-Regular, monospace';
   const h = hero ? 27 : 17;
@@ -1049,14 +1114,17 @@ function drawTag(ctx, x, y, text, fg, bg, border, clamp = true, hero = false, do
     bx = Math.max(18, Math.min(STAGE_W - tw - 18, bx));
     by = Math.max(18, Math.min(STAGE_H - h - 6, by));
   }
-  if (hero) {
+  if (glow) {
+    ctx.shadowColor = glow;
+    ctx.shadowBlur = 16;
+  } else if (hero) {
     ctx.shadowColor = '#030911';
     ctx.shadowBlur = 4;
     ctx.shadowOffsetY = 2;
   }
   ctx.fillStyle = bg;
   ctx.beginPath();
-  ctx.roundRect(bx + 0.5, by + 0.5, tw - 1, h - 1, hero ? (text === 'YOU · HIDDEN' ? h / 2 : 4) : 0);
+  ctx.roundRect(bx + 0.5, by + 0.5, tw - 1, h - 1, hero ? (hero === 'pill' ? h / 2 : 4) : 0);
   ctx.fill();
   ctx.shadowBlur = 0;
   ctx.shadowOffsetY = 0;

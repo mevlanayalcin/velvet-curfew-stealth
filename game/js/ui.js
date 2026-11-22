@@ -2,6 +2,9 @@
 
 import { MUSEUM_WINGS } from './levels.js';
 
+export { mountArtDecoHud, renderDebriefLedger };
+export { updateCuratorTelemetry, renderWingPicker, renderTacticsOverlay, setOverlay, showRibbonBanner, hideRibbonBanner, setGameoverReason, setMuteLabel };
+
 const ui = (k) => document.querySelector(`[data-ui="${k}"]`);
 const wingName = (w) => w.title.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 const STATE_COPY = {
@@ -12,7 +15,7 @@ const STATE_COPY = {
 };
 const ROMANS = ['I', 'II', 'III', 'IV', 'V'];
 
-export function mountArtDecoHud(handlers) {
+function mountArtDecoHud(handlers) {
   if (!document.querySelector('[data-ui="objective"]')) {
     document.getElementById('topbar').innerHTML = `
       <div class="top-left">
@@ -183,7 +186,7 @@ export function mountArtDecoHud(handlers) {
   ui('btn-mute').onclick = handlers.onMute;
 }
 
-export function updateCuratorTelemetry(state) {
+function updateCuratorTelemetry(state) {
   const w = state.wing, p = state.player, isDebrief = state.mode === 'debrief';
   ui('wing-roman').textContent = w.roman;
   ui('wing-name').textContent = w.title;
@@ -257,7 +260,7 @@ export function updateCuratorTelemetry(state) {
   }).join('');
 }
 
-export function renderDebriefLedger(state, onSelectWing) {
+function renderDebriefLedger(state, onSelectWing) {
   const w = state.wing, ghost = state.wingAlerts === 0;
   const grade = state.campaign[state.wingIndex].grade;
   ui('dmt-wing').textContent = `WING ${w.roman} · ${w.title} — GOLDEN INFILTRATION TRAIL`;
@@ -286,7 +289,7 @@ export function renderDebriefLedger(state, onSelectWing) {
   });
 }
 
-export function renderWingPicker(selectedIndex, onSelect) {
+function renderWingPicker(selectedIndex, onSelect) {
   const host = ui('title-wing-list');
   host.innerHTML = '';
   MUSEUM_WINGS.forEach((w, idx) => {
@@ -298,7 +301,7 @@ export function renderWingPicker(selectedIndex, onSelect) {
   });
 }
 
-export function renderTacticsOverlay(state, onPick) {
+function renderTacticsOverlay(state, onPick) {
   const grid = ui('tactics-cards');
   grid.innerHTML = '';
   state.draftOptions.forEach((pk, idx) => {
@@ -310,22 +313,22 @@ export function renderTacticsOverlay(state, onPick) {
   });
 }
 
-export function setOverlay(mode) {
+function setOverlay(mode) {
   ui('overlay-title').classList.toggle('hidden', mode !== 'title');
   ui('overlay-tactics').classList.toggle('hidden', mode !== 'tactics');
   ui('overlay-pause').classList.toggle('hidden', mode !== 'paused');
   ui('overlay-gameover').classList.toggle('hidden', mode !== 'gameover');
 }
 
-export function showRibbonBanner(text, isDanger = false) {
+function showRibbonBanner(text, isDanger = false) {
   const el = ui('curfew-ribbon');
   el.textContent = text;
   el.className = `curfew-ribbon${isDanger ? '' : ' info'}`;
 }
 
-export function hideRibbonBanner() { ui('curfew-ribbon').classList.add('hidden'); }
-export function setGameoverReason(msg) { ui('gameover-reason').textContent = msg; }
-export function setMuteLabel(muted) { ui('btn-mute').textContent = muted ? 'MUTED' : 'SFX'; }
+function hideRibbonBanner() { ui('curfew-ribbon').classList.add('hidden'); }
+function setGameoverReason(msg) { ui('gameover-reason').textContent = msg; }
+function setMuteLabel(muted) { ui('btn-mute').textContent = muted ? 'MUTED' : 'SFX'; }
 
 function formatTime(sec) {
   const s = Math.max(0, Math.floor(sec));

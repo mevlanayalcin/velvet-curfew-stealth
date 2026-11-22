@@ -6,7 +6,10 @@ import {
   isPointInVisionCone, normalizeAngle, pointToSegmentDist,
 } from './vision.js';
 
-export function updateCuratorPatrols(state, dt, sound, onCaught, onRibbon) {
+export { updateCuratorPatrols, soundCurfewBell, emitGuardFootstepEcho };
+export { updateBrassEyeCameras, notifySound, createGuards, createCameras, createTripwires };
+
+function updateCuratorPatrols(state, dt, sound, onCaught, onRibbon) {
   updateBrassEyeCameras(state, dt, sound, onRibbon);
 
   const p = state.player;
@@ -144,13 +147,13 @@ export function updateCuratorPatrols(state, dt, sound, onCaught, onRibbon) {
     else if (g.state === 'CURIOUS' && badge === 'UNSEEN') badge = 'CURIOUS';
   }
 
-  if (badge === 'UNSEEN') state.lastGlimpse = null;
+  if (badge === 'UNSEEN') { state.lastGlimpse = null; state.bellOrigin = null; state.bellLinks = []; }
   if (maxSusp > 0.35 && sound) sound.playHeartbeat(state.time, badge === 'BREACH' ? 1 : maxSusp);
   state.maxSuspicion = maxSusp;
   state.detectionState = badge;
 }
 
-export function updateBrassEyeCameras(state, dt, sound, onRibbon) {
+function updateBrassEyeCameras(state, dt, sound, onRibbon) {
   const p = state.player;
   const concealed = p.inVeil || (p.inSettee && p.crouched);
 
@@ -174,18 +177,20 @@ export function updateBrassEyeCameras(state, dt, sound, onRibbon) {
   if (state.bellCooldown > 0) state.bellCooldown = Math.max(0, state.bellCooldown - dt);
 }
 
-export function emitGuardFootstepEcho(state, guard, player, sound) {
+function emitGuardFootstepEcho(state, guard, player, sound) {
   const dToPlayer = Math.hypot(guard.x - player.x, guard.y - player.y);
   if (dToPlayer >= 420) return;
+  for (const s of state.guardSteps) if (s.by === guard.id) s.label = null;
   state.guardSteps.push({
     x: guard.x, y: guard.y, r: 10, maxR: guard.state === 'BREACH' ? 54 : 44,
     alpha: guard.state === 'BREACH' ? 0.85 : 0.65,
     danger: guard.state === 'BREACH' || guard.state === 'CURIOUS',
+    by: guard.id, label: hasLineOfSight(guard.x, guard.y, player.x, player.y, state.geom) ? null : 'STEP',
   });
   if (sound) sound.playGuardFootstep((guard.x - player.x) / 360, 1 - dToPlayer / 420);
 }
 
-export function createGuards(wing, geom) {
+function createGuards(wing, geom) {
   return wing.guards.map((g, idx) => {
     const spec = GUARD_TYPES[g.type] || GUARD_TYPES.curator;
     const guard = {
@@ -201,7 +206,7 @@ export function createGuards(wing, geom) {
   });
 }
 
-export function createCameras(wing, geom) {
+function createCameras(wing, geom) {
   return (wing.cameras || []).map((c, idx) => {
     const cam = {
       id: idx, x: c.x, y: c.y, baseAngle: c.baseAngle, angle: c.baseAngle,
@@ -213,7 +218,7 @@ export function createCameras(wing, geom) {
   });
 }
 
-export function createTripwires(wing) {
+function createTripwires(wing) {
   return (wing.tripwires || []).map((t, idx) => ({
     id: idx, x1: t.x1, y1: t.y1, x2: t.x2, y2: t.y2,
     period: t.period || 4.4, duty: t.duty || 0.62, phase: t.phase || 0,
@@ -221,7 +226,7 @@ export function createTripwires(wing) {
   }));
 }
 
-export function notifySound(state, x, y, radius, isLure, sound) {
+function notifySound(state, x, y, radius, isLure, sound) {
   let heard = 0;
   for (const g of state.guards) {
     if (g.state === 'BREACH') continue;
@@ -239,7 +244,7 @@ export function notifySound(state, x, y, radius, isLure, sound) {
   return heard;
 }
 
-export function soundCurfewBell(state, sourceGuard, x, y, sound, onRibbon) {
+function soundCurfewBell(state, sourceGuard, x, y, sound, onRibbon) {
   const alreadyInBreach = state.guards.some((g) => g.state === 'BREACH');
   const shouldToll = !alreadyInBreach && state.bellCooldown <= 0;
   if (shouldToll) {

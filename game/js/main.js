@@ -1,7 +1,7 @@
 // Velvet Curfew — Game Loop, Museum Wing Loader & Curfew Breach Orchestrator (1280x720 HD)
 
 import { computeRaycastVisionCone, buildOccluderSegments } from './vision.js';
-import { updateCuratorPatrols, createCameras, createGuards, createTripwires, notifySound } from './patrol.js';
+import { updateCuratorPatrols, updateBrassEyeCameras, createCameras, createGuards, createTripwires, notifySound } from './patrol.js';
 import {
   updateStealthDetection, douseNearbySconce, useBrassFloorVent,
   deployVelvetVeilSmoke, throwBrassCoinLure, claimSolisOpal,
@@ -15,6 +15,8 @@ import {
   renderTacticsOverlay, renderWingPicker, setOverlay,
   showRibbonBanner, hideRibbonBanner, setGameoverReason, setMuteLabel,
 } from './ui.js';
+
+export { startGameLoop };
 
 const canvas = document.getElementById('stage');
 const ctx = canvas.getContext('2d');
@@ -42,7 +44,7 @@ const state = {
   draftOptions: [], ribbonTimer: 0,
 };
 
-export function startGameLoop() {
+function startGameLoop() {
   let lastTs = performance.now();
   function tick(ts) {
     const dt = Math.min(0.05, (ts - lastTs) / 1000);
@@ -76,7 +78,7 @@ export function startGameLoop() {
   requestAnimationFrame(tick);
 }
 
-export function loadMuseumWing(idx, resetRun = false) {
+function loadMuseumWing(idx, resetRun = false) {
   state.wingIndex = Math.max(0, Math.min(MUSEUM_WINGS.length - 1, idx));
   state.wing = MUSEUM_WINGS[state.wingIndex];
   state.geom = buildOccluderSegments(state.wing.obstacles);
@@ -113,7 +115,7 @@ export function loadMuseumWing(idx, resetRun = false) {
   updateCuratorTelemetry(state);
 }
 
-export function triggerCurfewBreach(guard) {
+function triggerCurfewBreach(guard) {
   spawnSparks(state, state.player.x, state.player.y, '#e11d48', 18);
   state.mode = 'gameover';
   setGameoverReason(`Detained by ${guard.spec.name} inside ${state.wing.title}.`);
@@ -206,46 +208,54 @@ function applyShotPreset(shot) {
 
   if (shot === 'breach') {
     loadMuseumWing(2, true);
-    state.mode = 'play'; state.time = 74; state.score = 2000; // 1200 Opal + 2x350 relics + 1x100 lamp
+    state.mode = 'play'; state.time = 72.55; state.score = 2000; // 1200 Opal + 2x350 relics + 1x100 lamp
     state.opalTaken = true; state.relicItems[0].taken = true; state.relicItems[1].taken = true; state.relicsTaken = 3;
-    state.coins = 2; state.veils = 1; state.dousedCount = 1; state.lights[3].lit = false;
-    state.wingAlerts = 1; state.bellCount = 1; state.detectionState = 'BREACH';
-    state.player.x = px(612); state.player.y = py(294); state.player.angle = 0; state.player.crouched = false; state.player.noise = 78;
-    state.veilsActive = [{ x: px(468), y: py(286), r: 74, maxR: 76, timer: 4.5, duration: 6.8, alpha: 0.92 }];
-    state.lastGlimpse = { x: px(404), y: py(288), angle: 0.05 };
-    const g0 = state.guards[0]; g0.x = px(292); g0.y = py(286); g0.angle = 0.04; g0.state = 'BREACH'; g0.suspicion = 1.0;
-    const g1 = state.guards[1]; g1.x = px(412); g1.y = py(128); g1.angle = 1.56; g1.state = 'SWEEPING'; g1.suspicion = 0.76; g1.callout = 'CONVERGING';
-    const g2 = state.guards[2]; g2.x = px(412); g2.y = py(444); g2.angle = -1.56; g2.state = 'SWEEPING'; g2.suspicion = 0.72; g2.callout = 'CONVERGING';
-    state.guards[3].x = px(716); state.guards[3].y = py(478); state.guards[3].angle = -1.62; state.guards[3].state = 'PATROL';
-    state.bellOrigin = { x: px(292), y: py(286) };
-    state.bellLinks = [{ x1: px(292), y1: py(286), x2: g1.x, y2: g1.y }, { x1: px(292), y1: py(286), x2: g2.x, y2: g2.y }];
-    state.cameras[0].angle = 2.38; state.tripwires[0].active = true;
-    state.guardSteps = [{ x: px(716), y: py(478), r: 32, maxR: 54, alpha: 0.8, danger: true, label: 'STEP' }];
-    evaluateStealthSurface(state, 0); recomputeAllCones(); setOverlay('play');
-    triggerRibbon('CURFEW BELL! Slip behind marble cover or pop Velvet Veil [E].', true, 99);
-    updateCuratorTelemetry(state);
+    state.coins = 2; state.coinsUsed = 2; state.veils = 2; state.dousedCount = 1; state.lights[3].lit = false;
+    state.alerts = 1; state.wingAlerts = 1; state.bellCount = 1;
+    const veil = { x: 554, y: 324, r: 67.5, maxR: 68, timer: 4.9, duration: 6.8, alpha: 0.9 };
+    state.veilsActive = [veil];
+    state.lastGlimpse = { x: veil.x, y: veil.y, angle: 0 };
+    Object.assign(state.player, { x: 606, y: 350, angle: -0.08, crouched: false, noise: 28 });
+    const [g0, g1, g2, g3] = state.guards;
+    const hunt = (g, x, y, set) => Object.assign(g, { x, y, angle: Math.atan2(veil.y - y, veil.x - x), target: { x: veil.x, y: veil.y }, crumbs: [{ x, y }] }, set);
+    hunt(g0, 412, 322, { state: 'BREACH', suspicion: 1, peakSuspicion: 1, stateTimer: 2.3, callout: 'CURFEW BELL!' });
+    hunt(g1, 522, 150, { state: 'BREACH', suspicion: 1, peakSuspicion: 1, stateTimer: 2.6, callout: 'CURFEW BELL!' });
+    hunt(g2, 526, 488, { state: 'SWEEPING', suspicion: 0.6, peakSuspicion: 1, stateTimer: 2.4 });
+    Object.assign(g3, { x: g3.waypoints[0].x, y: g3.waypoints[0].y, angle: Math.PI / 2, wpIndex: 1, pauseLeft: 1.3 });
+    state.guardSteps = [
+      { x: 368, y: 322, r: 22, maxR: 54, alpha: 0.60, danger: true },
+      { x: 515, y: 123, r: 17, maxR: 54, alpha: 0.71, danger: true },
+      { x: 519, y: 523, r: 27, maxR: 44, alpha: 0.30, danger: false },
+    ];
+    evaluateStealthSurface(state, 0); updateBrassEyeCameras(state, 0, null, null); recomputeAllCones(); setOverlay('play');
+    triggerRibbon('VELVET VEIL RELEASED — SIGHTLINES SEVERED', false, 99);
+    state.detectionState = 'BREACH'; updateCuratorTelemetry(state);
     return;
   }
 
   if (shot === 'sweeping') {
-    loadMuseumWing(1, true);
-    state.mode = 'play'; state.time = 62; state.score = 800; // 2x350 relics + 1x100 lamp
-    state.relicItems[0].taken = true; state.relicItems[1].taken = true; state.relicsTaken = 2;
-    state.coins = 3; state.veils = 1; state.dousedCount = 1; state.wingAlerts = 1; state.bellCount = 1;
-    state.detectionState = 'SWEEPING'; state.lights[4].lit = false;
-    state.player.x = px(556); state.player.y = py(468); state.player.angle = -1.4; state.player.crouched = true; state.player.noise = 7;
-    state.veilsActive = [{ x: px(486), y: py(318), r: 52, maxR: 58, timer: 2.0, duration: 6.8, alpha: 0.68 }];
-    state.lastGlimpse = { x: px(406), y: py(288), angle: 0.2 };
-    const g0 = state.guards[0]; g0.x = px(342); g0.y = py(242); g0.angle = 0.62; g0.state = 'SWEEPING'; g0.suspicion = 0.74; g0.callout = 'SWEEPING';
-    state.guards[1].x = px(224); state.guards[1].y = py(110); state.guards[1].angle = 0.45; state.guards[1].state = 'PATROL';
-    state.guards[2].x = px(648); state.guards[2].y = py(354); state.guards[2].angle = 3.04; state.guards[2].state = 'PATROL';
-    const g3 = state.guards[3]; g3.x = px(468); g3.y = py(446); g3.angle = -1.96; g3.state = 'SWEEPING'; g3.suspicion = 0.64; g3.callout = 'DARKENED LAMP?';
-    state.cameras[0].angle = 2.45; state.tripwires[0].active = true;
-    state.guardSteps = [
-      { x: px(224), y: py(110), r: 32, maxR: 54, alpha: 0.8, danger: false, label: 'STEP' },
-      { x: px(648), y: py(354), r: 28, maxR: 52, alpha: 0.68, danger: false },
-    ];
-    evaluateStealthSurface(state, 0); recomputeAllCones(); setOverlay('play'); hideRibbonBanner(); updateCuratorTelemetry(state);
+    loadMuseumWing(3, true);
+    state.mode = 'play'; state.time = 70.2; state.score = 1650; // 1200 Opal + 1x350 relic + 1x100 lamp
+    state.opalTaken = true; state.relicItems[1].taken = true; state.relicsTaken = 2;
+    state.coins = 4; state.coinsUsed = 1; state.dousedCount = 1; state.lights[1].lit = false;
+    state.alerts = 1; state.wingAlerts = 1; state.bellCount = 1;
+    const bell = { x: 902, y: 446 };
+    state.lastGlimpse = { ...bell, angle: -Math.PI / 2 };
+    state.bellOrigin = { ...bell };
+    Object.assign(state.player, { x: 160, y: 120, angle: 1.25, crouched: true, noise: 6 });
+    const [inspectorN, inspectorS, docent] = state.guards;
+    const converge = (g, from, x, y) => {
+      Object.assign(g, { x, y, angle: Math.atan2(bell.y - y, bell.x - x), state: 'SWEEPING', suspicion: 0.72, peakSuspicion: 0.72,
+        stateTimer: 2.6, target: { ...bell }, callout: 'CONVERGING', crumbs: [from, { x, y }] });
+      state.bellLinks.push({ x1: bell.x, y1: bell.y, x2: from.x, y2: from.y });
+    };
+    converge(docent, { x: 712, y: 250 }, 820, 362);
+    converge(inspectorS, { x: 560, y: 511 }, 669, 490);
+    Object.assign(inspectorN, { x: 560, y: inspectorN.waypoints[1].y, angle: 0, wpIndex: 1 });
+    state.guardSteps = [{ x: 538, y: inspectorN.y, r: 22, maxR: 44, alpha: 0.40, danger: false }];
+    evaluateStealthSurface(state, 0); updateBrassEyeCameras(state, 0, null, null); recomputeAllCones(); setOverlay('play');
+    triggerRibbon('SLIPPED SILENTLY THROUGH SUBFLOOR BRASS VENT', false, 99);
+    state.detectionState = 'SWEEPING'; updateCuratorTelemetry(state);
     return;
   }
 
