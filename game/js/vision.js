@@ -1,7 +1,7 @@
 // Velvet Curfew — True 2D Raycast Visibility Polygon & Sightline Occlusion Engine
 
-export { castRay, computeRaycastVisionCone };
-export { hasLineOfSight, isPointInVisionCone, buildOccluderSegments, angleDiff, normalizeAngle, pointToSegmentDist };
+export {castRay, computeRaycastVisionCone};
+export {hasLineOfSight, isPointInVisionCone, buildOccluderSegments, angleDiff, normalizeAngle, pointToSegmentDist};
 
 const EPS = 0.0008;
 

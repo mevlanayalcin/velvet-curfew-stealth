@@ -6,11 +6,12 @@ import {
   isPointInVisionCone, normalizeAngle, pointToSegmentDist,
 } from './vision.js';
 
-export { updateCuratorPatrols, soundCurfewBell, emitGuardFootstepEcho };
-export { updateBrassEyeCameras, notifySound, createGuards, createCameras, createTripwires };
+export {updateCuratorPatrols, soundCurfewBell, emitGuardFootstepEcho};
+export {updateBrassEyeCameras, notifySound, createGuards, createCameras, createTripwires, fadeFootstepRings};
 
 function updateCuratorPatrols(state, dt, sound, onCaught, onRibbon) {
   updateBrassEyeCameras(state, dt, sound, onRibbon);
+  fadeFootstepRings(state, dt);
 
   const p = state.player;
   const obs = state.wing.obstacles;
@@ -179,15 +180,22 @@ function updateBrassEyeCameras(state, dt, sound, onRibbon) {
 
 function emitGuardFootstepEcho(state, guard, player, sound) {
   const dToPlayer = Math.hypot(guard.x - player.x, guard.y - player.y);
-  if (dToPlayer >= 420) return;
+  if (dToPlayer >= 520) return;
+  if (sound) sound.playGuardFootstep((guard.x - player.x) / 360, 1 - dToPlayer / 520);
+  if (hasLineOfSight(guard.x, guard.y, player.x, player.y, state.geom)) return;
   for (const s of state.guardSteps) if (s.by === guard.id) s.label = null;
+  const hunting = guard.state === 'BREACH';
   state.guardSteps.push({
-    x: guard.x, y: guard.y, r: 10, maxR: guard.state === 'BREACH' ? 54 : 44,
-    alpha: guard.state === 'BREACH' ? 0.85 : 0.65,
-    danger: guard.state === 'BREACH' || guard.state === 'CURIOUS',
-    by: guard.id, label: hasLineOfSight(guard.x, guard.y, player.x, player.y, state.geom) ? null : 'STEP',
+    by: guard.id, r: 13, speed: hunting ? 22 : 13, alpha: 1,
+    danger: hunting || guard.state === 'CURIOUS', label: 'STEP',
   });
-  if (sound) sound.playGuardFootstep((guard.x - player.x) / 360, 1 - dToPlayer / 420);
+}
+
+function fadeFootstepRings(state, dt) {
+  state.guardSteps = state.guardSteps.filter((s) => {
+    s.r += s.speed * dt;
+    return (s.alpha -= 0.62 * dt) > 0.02;
+  });
 }
 
 function createGuards(wing, geom) {

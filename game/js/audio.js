@@ -1,6 +1,8 @@
 // Velvet Curfew — Procedural Spatial Web Audio Engine (Zero External Assets)
 
-export class SpatialStealthAudio {
+export {SpatialStealthAudio};
+
+class SpatialStealthAudio {
   constructor() {
     this.ctx = null;
     this.muted = false;

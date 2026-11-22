@@ -2,8 +2,7 @@
 
 import { STAGE_H, STAGE_W } from './levels.js';
 
-export { renderMuseumStage };
-export { drawRaycastCones, drawDynamicLampPools, drawGuardFootstepSonar };
+export {renderMuseumStage};
 
 const floorCache = new Map();
 let shadowHatch;
@@ -12,7 +11,7 @@ let labelBounds; // Stage-space plaques and actors the next speech slip must lea
 function renderMuseumStage(ctx, state, nowSec) {
   const w = state.wing;
   const review = state.mode === 'debrief';
-  labelBounds = state.mode === 'play' && state.guards.some(g => g.state !== 'PATROL') ? [] : null;
+  labelBounds = state.mode === 'play' ? [] : null;
   ctx.clearRect(0, 0, STAGE_W, STAGE_H);
   ctx.drawImage(getMuseumFloor(w), 0, 0);
   for (const a of w.alcoves || []) drawShadowAlcove(ctx, a);
@@ -44,7 +43,7 @@ function renderMuseumStage(ctx, state, nowSec) {
     ctx.strokeStyle = '#92400e'; ctx.lineWidth = 1; ctx.stroke();
   }
   for (const cam of state.cameras) drawCameraDome(ctx, cam);
-  if (!review) drawGuardFootstepSonar(ctx, state.guardSteps || []);
+  if (!review) drawGuardFootstepSonar(ctx, state);
   if (state.mode !== 'debrief') drawInfiltrator(ctx, state);
   for (const g of state.guards) drawGuard(ctx, g);
   for (const pt of state.particles) {
@@ -91,20 +90,23 @@ function drawDynamicLampPools(ctx, state, nowSec) {
   }
 }
 
-function drawGuardFootstepSonar(ctx, steps) {
-  if (!steps.length) return;
-  ctx.save();
-  for (const s of steps) {
-    const col = s.danger ? `rgba(255, 209, 92, ${s.alpha})` : `rgba(226, 232, 240, ${s.alpha})`;
-    ctx.strokeStyle = col; ctx.lineWidth = 1.8; ctx.setLineDash([6, 4]);
-    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.stroke();
-    ctx.beginPath(); ctx.arc(s.x, s.y, Math.max(4, s.r * 0.56), 0, Math.PI * 2); ctx.stroke();
-    ctx.setLineDash([]);
+function drawGuardFootstepSonar(ctx, { guardSteps, guards, player, wing }) {
+  for (const s of guardSteps) {
+    const g = guards[s.by];
+    ctx.save();
+    ctx.strokeStyle = `rgba(${s.danger ? '255, 196, 92' : '255, 240, 208'}, ${Math.sqrt(s.alpha)})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(g.x, g.y, s.r, 0, Math.PI * 2); ctx.stroke();
     if (s.label) {
-      drawTag(ctx, s.x, s.y + s.r + 10, s.label, s.danger ? '#fef08a' : '#e2e8f0', 'rgba(10, 14, 24, 0.9)', s.danger ? '#f59e0b' : '#94a3b8');
+      const nx = -Math.sin(g.angle), ny = Math.cos(g.angle);
+      const d = (49 + 15 * Math.abs(nx)) * Math.sign(nx * (player.x - g.x) + ny * (player.y - g.y) || 1);
+      const walled = wing.obstacles.some((o) => Math.abs(g.x + nx * d - o.x - o.w / 2) < o.w / 2 + 28 && Math.abs(g.y + ny * d - o.y - o.h / 2) < o.h / 2 + 13);
+      const side = walled ? -d : d;
+      ctx.translate(g.x + nx * side, g.y + ny * side); ctx.scale(0.8, 0.8);
+      drawTag(ctx, 0, 0, s.label, '#fff0d0', '#1c1509', '#f2c261', false, 'pill');
     }
+    ctx.restore();
   }
-  ctx.restore();
 }
 
 function drawRaycastCones(ctx, state) {
@@ -273,7 +275,17 @@ function getMuseumFloor(wing) {
 }
 
 function drawSconceFixtures(ctx, state) {
+  const p = state.player, calm = labelBounds && !state.lastGlimpse;
+  const gap = (l) => Math.hypot(l.x - p.x, l.y - p.y);
+  const nearest = state.lights.filter((l) => l.lit).sort((a, b) => gap(a) - gap(b))[0];
   for (const l of state.lights) {
+    if (calm && (l === nearest || !l.lit)) {
+      const y = l.y + 24, [text, ink, fill, hue] = l.lit ? ['LIT · SEEN', '#3a2404', '#ffd166', '#ffe9ad'] : ['DOUSED · SAFE', '#c4ffe9', '#151e55', '#6ee7c8'];
+      const side = labelBounds.some(([a, t, r, b]) => l.x < r && l.x + 172 > a && y - 14 < b && y + 14 > t) ? -1 : 1;
+      ctx.strokeStyle = hue; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(l.x, l.y); ctx.lineTo(l.x, y); ctx.stroke();
+      drawTag(ctx, l.x - side * 8, y, text, ink, fill, hue, true, 'pill', side);
+    }
     ctx.save();
     ctx.translate(l.x, l.y);
     if (l.lit) {
@@ -291,7 +303,7 @@ function drawSconceFixtures(ctx, state) {
       ctx.strokeStyle = 'rgba(148, 163, 184, 0.42)';
       ctx.beginPath(); ctx.arc(5, -7, 4, 0.4, Math.PI * 1.4); ctx.stroke();
       ctx.beginPath(); ctx.arc(-4, -10, 3, 1.0, Math.PI * 1.9); ctx.stroke();
-      if (state.mode !== 'debrief') {
+      if (!calm && state.mode !== 'debrief') {
         drawTag(ctx, 0, 18, 'DOUSED', '#93c5fd', 'rgba(9, 15, 28, 0.92)', '#38bdf8', false);
       }
     }
@@ -983,10 +995,12 @@ function drawInfiltrator(ctx, state) {
     ctx.beginPath(); ctx.arc(0, 0, p.r + 13, 0, Math.PI * 2); ctx.fill();
   }
 
-  ctx.strokeStyle = concealed ? '#34d399' : shadowed ? '#38bdf8' : '#f6d88a';
-  ctx.lineWidth = concealed ? 2.8 : 2.0;
-  if (concealed || shadowed) ctx.setLineDash([5, 3]);
-  ctx.beginPath(); ctx.arc(0, 0, p.r + 7, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = concealed ? '#5ff5bd' : shadowed ? '#38bdf8' : '#f6d88a';
+  ctx.lineWidth = concealed ? 3 : 2.0;
+  if (shadowed) ctx.setLineDash([5, 3]);
+  ctx.beginPath(); ctx.arc(0, 0, p.r + 7, 0, Math.PI * 2);
+  if (concealed) { ctx.fillStyle = 'rgba(2, 20, 16, 0.78)'; ctx.fill(); }
+  ctx.stroke();
   ctx.setLineDash([]);
 
   ctx.rotate(p.angle);

@@ -1,9 +1,10 @@
 // Velvet Curfew — Art-Deco HUD, Field Legend, Live Telemetry & Debrief Ledger
 
 import { MUSEUM_WINGS } from './levels.js';
+import { isPointInVisionCone } from './vision.js';
 
-export { mountArtDecoHud, renderDebriefLedger };
-export { updateCuratorTelemetry, renderWingPicker, renderTacticsOverlay, setOverlay, showRibbonBanner, hideRibbonBanner, setGameoverReason, setMuteLabel };
+export {mountArtDecoHud, renderDebriefLedger};
+export {updateCuratorTelemetry, renderWingPicker, renderTacticsOverlay, setOverlay, showRibbonBanner, hideRibbonBanner, setGameoverReason, setMuteLabel};
 
 const ui = (k) => document.querySelector(`[data-ui="${k}"]`);
 const wingName = (w) => w.title.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
@@ -112,10 +113,10 @@ function mountArtDecoHud(handlers) {
         <ul class="legend-list">
           <li><span class="li-ico li-cur"></span><span>Curator + vision cone</span></li>
           <li><span class="li-ico li-track"></span><span>Dotted patrol: 1s / 2s stops</span></li>
+          <li><span class="li-ico li-step"></span><span>Footstep rings: where a guard is</span></li>
           <li><span class="li-ico li-sofa"></span><span>Velvet sofa: crouch to hide</span></li>
           <li><span class="li-ico li-hatch"></span><span>Hatched wedge: safe from sight</span></li>
           <li><span class="li-ico li-lamp"></span><span>Brass lamp: lit=seen / [R] douse</span></li>
-          <li><span class="li-ico li-sec"></span><span>Security eye / laser tripwire</span></li>
           <li><span class="li-ico li-elev"></span><span>Elevator: unlocks with Opal</span></li>
         </ul>
       </div>
@@ -181,8 +182,10 @@ function updateCuratorTelemetry(state) {
   const badge = ui('state-badge');
   badge.textContent = meta.label;
   badge.className = `state-badge ${meta.cls}`;
-  ui('state-copy').textContent = state.detectionState === 'CURIOUS' && state.guards.some(g => g.state === 'CURIOUS' && g.lurePos) ?
-    'Following the brass coin.' : meta.copy;
+  const alerted = state.guards.filter(g => g.state === 'CURIOUS' && state.detectionState === 'CURIOUS');
+  ui('state-copy').textContent = (p.inVeil || (p.inSettee && p.crouched)) &&
+    alerted.some(g => isPointInVisionCone(g.x, g.y, g.angle, g.spec.fov, g.spec.visionRange, p.x, p.y, state.geom)) ? 'Near miss — curator on alert.' :
+    alerted.some(g => g.lurePos) ? 'Following the brass coin.' : meta.copy;
 
   const pips = ui('bells').children;
   for (let i = 0; i < 3; i++) {

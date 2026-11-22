@@ -3,8 +3,8 @@
 import { STAGE_H, STAGE_W } from './levels.js';
 import { notifySound } from './patrol.js';
 
-export { updateStealthDetection };
-export { evaluateStealthSurface, throwBrassCoinLure, deployVelvetVeilSmoke, douseNearbySconce, useBrassFloorVent, claimSolisOpal, computeMods, updateEffects, spawnSparks };
+export {updateStealthDetection};
+export {evaluateStealthSurface, throwBrassCoinLure, deployVelvetVeilSmoke, douseNearbySconce, useBrassFloorVent, claimSolisOpal, computeMods, updateEffects, spawnSparks};
 
 function updateStealthDetection(state, input, dt, sound, onRibbon, onWingClear) {
   const p = state.player;
@@ -267,12 +267,6 @@ function updateEffects(state, dt, sound) {
     sm.timer -= dt;
     sm.alpha = sm.timer < 1.5 ? Math.max(0, (sm.timer / 1.5) * 0.9) : 0.9;
     if (sm.timer <= 0) state.veilsActive.splice(i, 1);
-  }
-  for (let i = state.guardSteps.length - 1; i >= 0; i--) {
-    const gs = state.guardSteps[i];
-    gs.r += 34 * dt;
-    gs.alpha -= dt * 0.72;
-    if (gs.alpha <= 0.02 || gs.r >= gs.maxR) state.guardSteps.splice(i, 1);
   }
   for (let i = state.particles.length - 1; i >= 0; i--) {
     const pt = state.particles[i];

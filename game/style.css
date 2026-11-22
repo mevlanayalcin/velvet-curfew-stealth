@@ -172,7 +172,7 @@ html, body {
 .li-track { border-radius: 50%; border: 1.5px solid #d1b477; background: #211d18; }
 .li-track::after { content: '1s'; display: block; text-align: center; font: bold 9px/12px Georgia, serif; color: #fff0c9; }
 .li-lamp { border-radius: 50%; background: radial-gradient(circle, #fef08a 28%, #e5aa32 62%, transparent 80%); }
-.li-sec { border-radius: 50%; background: #2dd4bf; border: 2px solid #fb7185; box-shadow: 0 0 5px rgba(45, 212, 191, 0.7); }
+.li-step { border-radius: 50%; border: 1.5px solid #ffe9b0; box-shadow: inset 0 0 0 2px #0c1120, inset 0 0 0 3.5px #f2c261; }
 .li-elev { border-radius: 2px; background: #11382d; border: 1.5px solid #34d399; box-shadow: 0 0 5px rgba(52, 211, 153, 0.55); }
 
 /* Extraction papers */

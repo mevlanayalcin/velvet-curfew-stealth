@@ -1,7 +1,10 @@
 // Velvet Curfew — Game Loop, Museum Wing Loader & Curfew Breach Orchestrator (1280x720 HD)
 
 import { computeRaycastVisionCone, buildOccluderSegments } from './vision.js';
-import { updateCuratorPatrols, updateBrassEyeCameras, createCameras, createGuards, createTripwires, notifySound } from './patrol.js';
+import {
+  updateCuratorPatrols, updateBrassEyeCameras, createCameras, createGuards, createTripwires, notifySound,
+  emitGuardFootstepEcho, fadeFootstepRings,
+} from './patrol.js';
 import {
   updateStealthDetection, douseNearbySconce, useBrassFloorVent,
   deployVelvetVeilSmoke, throwBrassCoinLure, claimSolisOpal,
@@ -16,7 +19,7 @@ import {
   showRibbonBanner, hideRibbonBanner, setGameoverReason, setMuteLabel,
 } from './ui.js';
 
-export { startGameLoop };
+export {startGameLoop};
 
 const canvas = document.getElementById('stage');
 const ctx = canvas.getContext('2d');
@@ -195,10 +198,8 @@ function applyShotPreset(shot) {
     g2.x = px(392); g2.y = g2.waypoints[0].y; g2.angle = Math.PI;
     notifySound(state, coin.x, coin.y, 178, true, null);
     state.cameras[0].angle = 2.48; state.tripwires[0].active = true;
-    state.guardSteps = [
-      { x: g2.x, y: g2.y, r: 30, maxR: 54, alpha: 0.70, danger: false },
-      { x: g1.x, y: g1.y, r: 25, maxR: 50, alpha: 0.55, danger: false },
-    ];
+    g1.stepTimer = g2.stepTimer = 0.39;
+    ringFootsteps([g1, g2], 0.62, 0.62, 0.23);
     evaluateStealthSurface(state, 0); recomputeAllCones(); setOverlay('play'); hideRibbonBanner(); updateCuratorTelemetry(state);
     return;
   }
@@ -218,12 +219,8 @@ function applyShotPreset(shot) {
     hunt(g0, 412, 322, { state: 'BREACH', suspicion: 1, peakSuspicion: 1, stateTimer: 2.3, callout: 'CURFEW BELL!' });
     hunt(g1, 522, 150, { state: 'BREACH', suspicion: 1, peakSuspicion: 1, stateTimer: 2.6, callout: 'CURFEW BELL!' });
     hunt(g2, 526, 488, { state: 'SWEEPING', suspicion: 0.6, peakSuspicion: 1, stateTimer: 2.4 });
-    Object.assign(g3, { x: g3.waypoints[0].x, y: g3.waypoints[0].y, angle: Math.PI / 2, wpIndex: 1, pauseLeft: 1.3 });
-    state.guardSteps = [
-      { x: 368, y: 322, r: 22, maxR: 54, alpha: 0.60, danger: true },
-      { x: 515, y: 123, r: 17, maxR: 54, alpha: 0.71, danger: true },
-      { x: 519, y: 523, r: 27, maxR: 44, alpha: 0.30, danger: false },
-    ];
+    Object.assign(g3, { x: g3.waypoints[0].x, y: g3.waypoints[0].y, angle: Math.PI / 2, wpIndex: 1, pauseLeft: 1.3, stepTimer: 0.57 });
+    ringFootsteps([g3], 0.62, 0.75);
     evaluateStealthSurface(state, 0); updateBrassEyeCameras(state, 0, null, null); recomputeAllCones(); setOverlay('play');
     state.detectionState = 'BREACH'; updateCuratorTelemetry(state);
     return;
@@ -253,6 +250,13 @@ function applyShotPreset(shot) {
       ['W',41], ['A',63], ['W',27], ['',130], ['D',152], ['S',111], ['E'], ['D',82],
       ['W',85], ['D',50], ['',401], ['R'], ['Q',685,160], ['D',28],
     ]);
+  }
+}
+
+function ringFootsteps(walkers, ...ages) {
+  for (const dt of ages) {
+    for (const g of walkers) emitGuardFootstepEcho(state, g, state.player, null);
+    fadeFootstepRings(state, dt);
   }
 }
 

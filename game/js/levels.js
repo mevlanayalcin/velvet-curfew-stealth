@@ -1,7 +1,7 @@
 // Velvet Curfew — 5 Handcrafted Art-Deco Grand Museum Wings (1024x648 HD), Guard Archetypes & Perks
 
-export { MUSEUM_WINGS, GUARD_TYPES };
-export { STEALTH_PERKS, STAGE_W, STAGE_H };
+export {MUSEUM_WINGS, GUARD_TYPES};
+export {STEALTH_PERKS, STAGE_W, STAGE_H};
 
 const STAGE_W = 1024;
 const STAGE_H = 648;
