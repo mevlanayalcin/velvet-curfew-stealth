@@ -41,22 +41,36 @@ export function computeRaycastVisionCone(ox, oy, facing, fov, range, geom, veils
     const rel = angles[i];
     if (rel - prev < 0.0003) continue;
     prev = rel;
-    const hit = castRay(ox, oy, facing + rel, range, geom.segs, veils);
-    pts.push({ x: hit.x, y: hit.y });
+    const angle = facing + rel;
+    const hit = castRay(ox, oy, angle, range, geom.segs, veils);
+    const o = hit.blocker;
+    if (o && o.kind !== 'wall') {
+      // Hatch beyond the far face, not from the front of the prop through the next wall.
+      const dx = Math.cos(angle), dy = Math.sin(angle);
+      const exit = Math.min(
+        Math.abs(dx) < 1e-8 ? Infinity : ((dx > 0 ? o.x + o.w : o.x) - ox) / dx,
+        Math.abs(dy) < 1e-8 ? Infinity : ((dy > 0 ? o.y + o.h : o.y) - oy) / dy
+      ) + 0.05;
+      if (exit < range) {
+        const x = ox + dx * exit, y = oy + dy * exit;
+        const end = castRay(x, y, angle, Math.min(range - exit, 96), geom.segs, veils);
+        hit.shadow = { x, y, ex: end.x, ey: end.y };
+      }
+    }
+    pts.push(hit);
   }
   return pts;
 }
 
 export function buildOccluderSegments(obstacles) {
-  const segs = [];
-  const corners = [];
+  const tall = { segs: [], corners: [] }, low = { segs: [], corners: [] };
   for (const r of obstacles) {
-    if (r.kind === 'settee') continue;
+    const { segs, corners } = r.kind === 'settee' ? low : tall;
     const x1 = r.x, y1 = r.y, x2 = r.x + r.w, y2 = r.y + r.h;
-    segs.push([x1, y1, x2, y1], [x2, y1, x2, y2], [x2, y2, x1, y2], [x1, y2, x1, y1]);
+    segs.push([x1, y1, x2, y1, r], [x2, y1, x2, y2, r], [x2, y2, x1, y2, r], [x1, y2, x1, y1, r]);
     corners.push([x1, y1], [x2, y1], [x2, y2], [x1, y2]);
   }
-  return { segs, corners };
+  return { ...tall, crouched: { segs: tall.segs.concat(low.segs), corners: tall.corners.concat(low.corners) } };
 }
 
 export function isPointInVisionCone(ox, oy, facing, fov, range, tx, ty, geom, veils = []) {
@@ -102,19 +116,21 @@ function rayCircleT(ox, oy, dx, dy, cx, cy, r) {
 
 export function castRay(ox, oy, angle, maxDist, segs, veils = []) {
   const dx = Math.cos(angle), dy = Math.sin(angle);
-  let best = maxDist;
+  let best = maxDist, blocker = null;
   for (let i = 0; i < segs.length; i++) {
     const s = segs[i];
+    const o = s[4];
+    if (o?.kind === 'settee' && ox >= o.x && ox <= o.x + o.w && oy >= o.y && oy <= o.y + o.h) continue;
     const t = raySegT(ox, oy, dx, dy, s[0], s[1], s[2], s[3]);
-    if (t < best) best = t;
+    if (t < best) { best = t; blocker = o; }
   }
   for (let i = 0; i < veils.length; i++) {
     const sm = veils[i];
     if (sm.alpha < 0.2) continue;
     const t = rayCircleT(ox, oy, dx, dy, sm.x, sm.y, sm.r * 0.88);
-    if (t < best) best = t;
+    if (t < best) { best = t; blocker = null; }
   }
-  return { x: ox + dx * best, y: oy + dy * best, dist: best };
+  return { x: ox + dx * best, y: oy + dy * best, dist: best, blocker };
 }
 
 export function hasLineOfSight(ox, oy, tx, ty, geom, veils = []) {

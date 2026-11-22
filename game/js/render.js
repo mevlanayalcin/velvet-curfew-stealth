@@ -3,6 +3,7 @@
 import { STAGE_H, STAGE_W } from './levels.js';
 
 const floorCache = new Map();
+let shadowHatch;
 
 export function renderMuseumStage(ctx, state, nowSec) {
   const w = state.wing;
@@ -12,7 +13,9 @@ export function renderMuseumStage(ctx, state, nowSec) {
   drawDynamicLampPools(ctx, state, nowSec);
   drawBrassVents(ctx, w.vents || [], state);
   for (const ar of w.arches || []) drawArtDecoArch(ctx, ar);
+  if (state.mode !== 'debrief') drawCoverBlindSpots(ctx, state);
   for (const o of w.obstacles) if (o.kind === 'settee') drawVelvetSettee(ctx, o);
+  if (state.mode !== 'debrief') drawPatrolTracks(ctx, state.guards);
   drawRaycastCones(ctx, state);
   for (const tw of state.tripwires) drawTripwire(ctx, tw, nowSec);
   for (const o of w.obstacles) if (o.kind !== 'settee') drawTallMuseumProp(ctx, o);
@@ -90,6 +93,66 @@ export function drawGuardFootstepSonar(ctx, steps) {
 export function drawRaycastCones(ctx, state) {
   for (const cam of state.cameras) drawCameraCone(ctx, cam);
   for (const g of state.guards) drawGuardCone(ctx, g);
+}
+
+function drawCoverBlindSpots(ctx, state) {
+  const eyes = [...state.guards, ...state.cameras];
+  const wedges = new Path2D();
+  let hasShadow = false;
+  for (const { visionPoly: poly } of eyes) {
+    for (let i = 2; i < poly.length; i++) {
+      const prev = poly[i - 1], next = poly[i];
+      const a = prev.shadow, b = next.shadow;
+      if (!a || !b || prev.blocker !== next.blocker) continue;
+      wedges.moveTo(a.x, a.y); wedges.lineTo(b.x, b.y);
+      wedges.lineTo(b.ex, b.ey); wedges.lineTo(a.ex, a.ey); wedges.closePath();
+      hasShadow = true;
+    }
+  }
+  if (!hasShadow) return;
+  if (!shadowHatch) {
+    const tile = document.createElement('canvas');
+    tile.width = tile.height = 24;
+    const t = tile.getContext('2d');
+    t.fillStyle = 'rgba(5, 60, 49, 0.58)'; t.fillRect(0, 0, 24, 24);
+    t.lineWidth = 1.7; t.strokeStyle = 'rgba(114, 243, 199, 0.80)';
+    t.beginPath();
+    for (let x = 0; x <= 48; x += 12) { t.moveTo(x, 0); t.lineTo(x - 24, 24); }
+    t.stroke();
+    t.lineWidth = 1; t.strokeStyle = 'rgba(114, 243, 199, 0.24)';
+    t.beginPath(); t.moveTo(0, 0); t.lineTo(24, 24); t.stroke();
+    shadowHatch = ctx.createPattern(tile, 'repeat');
+  }
+  ctx.save();
+  // A blind spot for one curator is not safe if a second lantern or camera can see it.
+  for (const { visionPoly: poly } of eyes) {
+    ctx.beginPath(); ctx.rect(0, 0, STAGE_W, STAGE_H);
+    ctx.moveTo(poly[0].x, poly[0].y);
+    for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x, poly[i].y);
+    ctx.closePath(); ctx.clip('evenodd');
+  }
+  ctx.fillStyle = shadowHatch; ctx.fill(wedges);
+  ctx.restore();
+}
+
+function drawPatrolTracks(ctx, guards) {
+  ctx.save();
+  ctx.lineCap = 'round'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = 'bold 13px Georgia, serif';
+  for (const { waypoints: pts } of guards) {
+    ctx.strokeStyle = 'rgba(251, 214, 145, 0.69)'; ctx.lineWidth = 2.4;
+    ctx.setLineDash([0.3, 10]);
+    ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    if (pts.length > 2) ctx.closePath();
+    ctx.stroke(); ctx.setLineDash([]);
+    for (const wp of pts) {
+      ctx.fillStyle = '#211d18'; ctx.strokeStyle = '#d1b477'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(wp.x, wp.y, 11.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#fff0c9'; ctx.fillText(`${wp.pause}s`, wp.x, wp.y + 0.7);
+    }
+  }
+  ctx.restore();
 }
 
 // Pre-render diagonal chevron marble parquet, crimson velvet runners with brass filigree & octagonal rotunda medallion
@@ -591,7 +654,11 @@ function drawOpalAndRelics(ctx, state, nowSec) {
     ctx.fillStyle = '#ffffff';
     ctx.beginPath(); ctx.arc(-2.5, -3.5, 2.6, 0, Math.PI * 2); ctx.fill();
 
-    drawTag(ctx, 0, -35, 'SOLIS OPAL', '#fef08a', 'rgba(12, 20, 38, 0.96)', '#38bdf8', false, true);
+    ctx.fillStyle = '#ddffff';
+    ctx.beginPath(); ctx.moveTo(8, -18); ctx.lineTo(10, -11); ctx.lineTo(17, -9);
+    ctx.lineTo(10, -7); ctx.lineTo(8, -1); ctx.lineTo(6, -7); ctx.lineTo(1, -9); ctx.lineTo(6, -11);
+    ctx.closePath(); ctx.fill();
+    drawTag(ctx, 0, -39, 'SOLIS OPAL', '#c9fbff', '#08232d', '#68e8ff', false, true);
   } else {
     ctx.strokeStyle = 'rgba(52, 211, 153, 0.78)';
     ctx.setLineDash([3, 3]);
@@ -655,7 +722,7 @@ function drawBrassElevator(ctx, state, nowSec) {
     ctx.beginPath(); ctx.arc(0, 4, 4.5, Math.PI, 0); ctx.stroke();
     ctx.fillRect(-5.5, 4, 11, 8);
     ctx.strokeRect(-5.5, 4, 11, 8);
-    drawTag(ctx, 0, 33, 'EXIT · LOCKED', '#f6d88a', 'rgba(18, 14, 9, 0.96)', '#e5be67', false, true);
+    drawTag(ctx, 0, 36, 'EXIT · LOCKED', '#ffe5a5', '#251c0d', '#e9bf65', false, true);
   }
   ctx.restore();
 }
@@ -705,12 +772,11 @@ function drawTacticalOverlays(ctx, state, nowSec) {
   }
 
   for (const g of state.guards) {
-    if (g.lurePos) {
+    if (g.state === 'CURIOUS' && g.lurePos) {
       ctx.save();
-      ctx.strokeStyle = 'rgba(245, 158, 11, 0.78)';
-      ctx.setLineDash([4, 5]);
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(39, 22, 7, 0.76)'; ctx.lineWidth = 4.5;
       ctx.beginPath(); ctx.moveTo(g.x, g.y); ctx.lineTo(g.lurePos.x, g.lurePos.y); ctx.stroke();
+      ctx.strokeStyle = '#ffd071'; ctx.setLineDash([8, 5]); ctx.lineWidth = 2.6; ctx.stroke();
       ctx.restore();
     }
   }
@@ -720,15 +786,22 @@ function drawTacticalOverlays(ctx, state, nowSec) {
     const isCoin = rp.kind === 'coin';
     ctx.strokeStyle = isCoin ? `rgba(240, 208, 132, ${rp.alpha})` : `rgba(56, 189, 248, ${rp.alpha * 0.72})`;
     ctx.lineWidth = isCoin ? 2 : 1.3;
-    ctx.setLineDash(isCoin ? [7, 4] : [4, 5]);
+    ctx.setLineDash(isCoin ? [] : [4, 5]);
     ctx.beginPath(); ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2); ctx.stroke();
     ctx.setLineDash([]);
     if (isCoin) {
-      ctx.fillStyle = '#fef08a';
-      ctx.beginPath(); ctx.arc(rp.x, rp.y, 4.4, 0, Math.PI * 2); ctx.fill();
-      if (rp.label) drawTag(ctx, rp.x, rp.y - 19, rp.label, '#fef08a', 'rgba(24, 18, 8, 0.94)', '#f0d084');
+      ctx.fillStyle = '#ffd16c'; ctx.strokeStyle = '#43290e'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(rp.x, rp.y, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#fff5c9'; ctx.fillRect(rp.x - 2, rp.y - 3, 2, 5);
     }
     ctx.restore();
+  }
+  for (const rp of state.ripples) {
+    if (rp.kind !== 'coin' || !rp.label) continue;
+    const g = state.guards.find(g => g.state === 'CURIOUS' && g.lurePos?.x === rp.x && g.lurePos.y === rp.y);
+    if (g) {
+      drawTag(ctx, rp.x, rp.y, `CLINK! · ${g.type.toUpperCase()} LURED`, '#fff2c4', '#392608', '#ffc75b', true, true, g.x < rp.x ? 1 : -1);
+    } else drawTag(ctx, rp.x, rp.y - 20, rp.label, '#ffe7a2', '#231907', '#e5be67');
   }
 
   // 2. Curfew Bell Red-Gold Alarm Pulses & Converging Vectors
@@ -872,19 +945,20 @@ function drawInfiltrator(ctx, state) {
 
   if (concealed && state.detectionState !== 'BREACH') {
     const lbl = p.inVeil ? 'VELVET VEIL' : 'YOU · HIDDEN';
-    drawTag(ctx, p.x, p.y + 27, lbl, '#6ee7b7', 'rgba(6, 26, 22, 0.97)', '#34d399', true, true);
+    const side = p.y < STAGE_H - 64 ? 1 : -1;
+    ctx.fillStyle = '#b3ffdd';
+    ctx.beginPath(); ctx.moveTo(p.x, p.y + 21 * side);
+    ctx.lineTo(p.x - 5, p.y + 31 * side); ctx.lineTo(p.x + 5, p.y + 31 * side); ctx.closePath(); ctx.fill();
+    drawTag(ctx, p.x, p.y + 42 * side, lbl, '#06291e', '#78ecc0', '#c1ffe1', true, true);
   } else if (shadowed && state.detectionState !== 'BREACH') {
     const lbl = p.inDoused ? 'DEEP SHADOW' : 'SHADOW';
     drawTag(ctx, p.x, p.y + 25, lbl, '#7dd3fc', 'rgba(9, 20, 34, 0.94)', '#38bdf8', true, false);
   }
 
-  // Contextual stealth action prompt pill (crouch cover / douse lamp)
-  if (state.contextPrompt) {
-    drawTag(ctx, p.x, p.y - 29, state.contextPrompt, '#f6d88a', 'rgba(9, 13, 22, 0.96)', '#c9a252');
-  } else if (state.mode === 'play' && !state.shotMode && p.lampInRange) {
+  if (state.mode === 'play' && !state.shotMode && p.lampInRange) {
     drawTag(ctx, p.x, p.y - 29, 'R · DOUSE LAMP', '#f6d88a', 'rgba(9, 13, 22, 0.96)', '#c9a252');
-  } else if (state.mode === 'play' && !state.shotMode && p.inSettee && p.crouched) {
-    drawTag(ctx, p.x, p.y - 29, 'SHIFT · CROUCH IN COVER', '#a7f3d0', 'rgba(8, 22, 20, 0.96)', '#34d399');
+  } else if (state.mode === 'play' && p.inSettee && !p.crouched) {
+    drawTag(ctx, p.x, p.y - 29, 'SHIFT · CROUCH IN COVER', '#a7f3d0', '#081614', '#34d399');
   }
 }
 
@@ -910,8 +984,22 @@ function drawGuard(ctx, g) {
   ctx.beginPath(); ctx.arc(9.5, 4.5, 3, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 
-  // Diegetic world-space callout pill above curious/breach/sweeping guards
-  if (g.callout) {
+  if (g.state === 'CURIOUS' && g.lurePos) {
+    ctx.save();
+    const a = Math.atan2(g.lurePos.y - g.y, g.lurePos.x - g.x);
+    ctx.strokeStyle = '#ffd071'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(g.x, g.y, 17, a - 1, a + 1); ctx.stroke();
+    ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(g.x, g.y, 22, a - 0.55, a + 0.55); ctx.stroke();
+    ctx.fillStyle = '#ffcf68'; ctx.strokeStyle = '#3e280e'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(g.x, g.y - 25, 12, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#271a0b'; ctx.font = 'bold 21px Georgia, serif'; ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle'; ctx.fillText('?', g.x, g.y - 24);
+    ctx.restore();
+  } else if (g.pauseLeft > 0 && g.state === 'PATROL') {
+    const pts = g.waypoints, total = pts[(g.wpIndex + pts.length - 1) % pts.length].pause;
+    ctx.strokeStyle = '#f1cf87'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(g.x, g.y, 16, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * g.pauseLeft / total); ctx.stroke();
+  } else if (g.callout) {
     const isBreach = g.state === 'BREACH';
     drawTag(
       ctx, g.x, g.y - 24, g.callout,
@@ -943,25 +1031,38 @@ function drawAimArc(ctx, state) {
   ctx.restore();
 }
 
-function drawTag(ctx, x, y, text, fg, bg, border, clamp = true, hero = false) {
+function drawTag(ctx, x, y, text, fg, bg, border, clamp = true, hero = false, dock = 0) {
   ctx.save();
-  ctx.font = hero ? '800 12.5px ui-monospace, SFMono-Regular, monospace' : '800 10px ui-monospace, SFMono-Regular, monospace';
-  const h = hero ? 22 : 17;
-  const tw = ctx.measureText(text).width + (hero ? 16 : 12);
-  const bx = clamp ? Math.max(18, Math.min(STAGE_W - tw - 18, x - tw / 2)) : x - tw / 2;
-  const by = clamp ? Math.max(18, Math.min(STAGE_H - h - 6, y - h / 2)) : y - h / 2;
+  ctx.font = hero ? 'bold 16px "DejaVu Sans Condensed", sans-serif' : '800 10px ui-monospace, SFMono-Regular, monospace';
+  const h = hero ? 27 : 17;
+  const tw = Math.ceil(ctx.measureText(text).width) + (hero ? 22 : 12);
+  let bx = x - tw / 2, by = y - h / 2;
+  if (dock) {
+    const edge = x + dock * 20;
+    const left = dock < 0 ? edge - tw : edge;
+    if (left >= 18 && left + tw <= STAGE_W - 18) {
+      bx = left; ctx.strokeStyle = border; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x + dock * 8, y); ctx.lineTo(edge, y); ctx.stroke();
+    } else by += y > 64 ? -38 : 38;
+  }
+  if (clamp) {
+    bx = Math.max(18, Math.min(STAGE_W - tw - 18, bx));
+    by = Math.max(18, Math.min(STAGE_H - h - 6, by));
+  }
   if (hero) {
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.78)';
-    ctx.shadowBlur = 8;
+    ctx.shadowColor = '#030911';
+    ctx.shadowBlur = 4;
     ctx.shadowOffsetY = 2;
   }
   ctx.fillStyle = bg;
-  ctx.fillRect(bx, by, tw, h);
+  ctx.beginPath();
+  ctx.roundRect(bx + 0.5, by + 0.5, tw - 1, h - 1, hero ? (text === 'YOU · HIDDEN' ? h / 2 : 4) : 0);
+  ctx.fill();
   ctx.shadowBlur = 0;
   ctx.shadowOffsetY = 0;
   ctx.strokeStyle = border || fg;
-  ctx.lineWidth = hero ? 1.7 : 1.15;
-  ctx.strokeRect(bx + 0.5, by + 0.5, tw - 1, h - 1);
+  ctx.lineWidth = hero ? 1.8 : 1.15;
+  ctx.stroke();
   ctx.fillStyle = fg;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

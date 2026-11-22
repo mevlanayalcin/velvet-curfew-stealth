@@ -1,11 +1,12 @@
-// Velvet Curfew — Dynamic Art-Deco HUD Mount, 6-Row Icon Legend, Live Telemetry & Debrief Ledger
+// Velvet Curfew — Art-Deco HUD, Field Legend, Live Telemetry & Debrief Ledger
 
 import { MUSEUM_WINGS } from './levels.js';
 
 const ui = (k) => document.querySelector(`[data-ui="${k}"]`);
+const wingName = (w) => w.title.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 const STATE_COPY = {
   UNSEEN: { cls: 'unseen', label: 'UNSEEN', copy: 'Safe in deep shadow.' },
-  CURIOUS: { cls: 'curious', label: 'CURIOUS · ?', copy: 'Curator heard glass shift.' },
+  CURIOUS: { cls: 'curious', label: 'CURIOUS · ?', copy: 'Investigating a disturbance.' },
   BREACH: { cls: 'breach', label: 'BREACH · !', copy: 'Docents converging now!' },
   SWEEPING: { cls: 'sweeping', label: 'SWEEPING', copy: 'Hunting your last shadow.' },
 };
@@ -122,8 +123,9 @@ export function mountArtDecoHud(handlers) {
         <div class="sec-h">LEGEND</div>
         <ul class="legend-list">
           <li><span class="li-ico li-cur"></span><span>Curator + vision cone</span></li>
+          <li><span class="li-ico li-track"></span><span>Dotted patrol: 1s / 2s stops</span></li>
           <li><span class="li-ico li-sofa"></span><span>Velvet sofa: crouch to hide</span></li>
-          <li><span class="li-ico li-pillar"></span><span>Marble pillar: blocks sight</span></li>
+          <li><span class="li-ico li-hatch"></span><span>Hatched wedge: safe from sight</span></li>
           <li><span class="li-ico li-lamp"></span><span>Brass lamp: lit=seen / [R] douse</span></li>
           <li><span class="li-ico li-sec"></span><span>Security eye / laser tripwire</span></li>
           <li><span class="li-ico li-elev"></span><span>Elevator: unlocks with Opal</span></li>
@@ -188,7 +190,8 @@ export function updateCuratorTelemetry(state) {
   ui('gallery').textContent = `${w.roman}/V`;
   ui('timer').textContent = formatTime(state.time);
   ui('score').textContent = state.score.toLocaleString('en-US');
-  ui('objective').textContent = state.opalTaken ? '✦ The Solis Opal taken — board the Brass Elevator unseen' : w.objective;
+  ui('objective').textContent = isDebrief ? `CURFEW BEATEN — Wing ${w.roman} ${wingName(w)} cleared` :
+    state.opalTaken ? '✦ The Solis Opal taken — board the Brass Elevator unseen' : w.objective;
 
   document.querySelector('.main-split').classList.toggle('debrief-mode', isDebrief);
   ui('hud-live').classList.toggle('hidden', isDebrief);
@@ -200,7 +203,8 @@ export function updateCuratorTelemetry(state) {
   const badge = ui('state-badge');
   badge.textContent = meta.label;
   badge.className = `state-badge ${meta.cls}`;
-  ui('state-copy').textContent = meta.copy;
+  ui('state-copy').textContent = state.detectionState === 'CURIOUS' && state.guards.some(g => g.state === 'CURIOUS' && g.lurePos) ?
+    'Following the brass coin.' : meta.copy;
 
   const pips = ui('bells').children;
   for (let i = 0; i < 3; i++) {
@@ -255,7 +259,7 @@ export function updateCuratorTelemetry(state) {
 
 export function renderDebriefLedger(state, onSelectWing) {
   const w = state.wing, ghost = state.wingAlerts === 0;
-  const grade = ghost ? 'S' : state.wingAlerts === 1 ? 'A' : 'B';
+  const grade = state.campaign[state.wingIndex].grade;
   ui('dmt-wing').textContent = `WING ${w.roman} · ${w.title} — GOLDEN INFILTRATION TRAIL`;
   ui('deb-grade').textContent = grade;
   ui('deb-rating').textContent = `GHOST RATING: ${grade}`;
@@ -274,10 +278,9 @@ export function renderDebriefLedger(state, onSelectWing) {
     const rec = state.campaign[idx];
     const row = document.createElement('div');
     row.className = `dw-row${idx === state.wingIndex ? ' active' : ''}`;
-    const name = wg.title.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
     const tag = rec ? `RANK ${rec.grade}` : idx === state.wingIndex + 1 ? 'NEXT →' : 'LOCKED';
     const cls = rec ? '' : idx === state.wingIndex + 1 ? 'next' : 'lock';
-    row.innerHTML = `<span class="dw-name">${wg.roman}. ${name}</span><span class="dw-tag ${cls}">${tag}</span>`;
+    row.innerHTML = `<span class="dw-name">${wg.roman}. ${wingName(wg)}</span><span class="dw-tag ${cls}">${tag}</span>`;
     if (rec || idx <= state.wingIndex + 1) row.onclick = () => onSelectWing(idx);
     list.appendChild(row);
   });

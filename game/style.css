@@ -1,4 +1,4 @@
-/* Velvet Curfew v6 — 1280x720 HD Art-Deco Grand Museum Frame (80% Map + 20% Tactical HUD & Legend) */
+/* Velvet Curfew v8 — Art-Deco Grand Museum Frame */
 :root {
   --obs: #070a13;
   --brass: #c9a252;
@@ -67,17 +67,17 @@ html, body {
 }
 .dmt-gold { color: var(--brass-hi); font-weight: 800; }
 
-/* Right 256px HUD — Ultra-Crisp Contact-Sheet Typography + 6-Row Icon Legend */
+/* Right 256px HUD */
 .right-hud {
   height: 648px; background: linear-gradient(180deg, #0f1423 0%, #080b13 100%);
   border-left: 1.5px solid var(--brass-line); padding: 8px 11px; overflow: hidden;
 }
-.hud-view { height: 100%; display: flex; flex-direction: column; gap: 6px; }
+.hud-view { height: 100%; display: flex; flex-direction: column; gap: 5px; }
 .hud-crest { display: flex; align-items: center; gap: 6px; }
 .crest-line { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--brass), transparent); }
 .crest-word { font-family: var(--serif); font-size: 11px; font-weight: 700; letter-spacing: 0.15em; color: var(--brass-hi); white-space: nowrap; }
-.hud-sec { padding-bottom: 6px; border-bottom: 1px solid rgba(201, 162, 82, 0.22); }
-.sec-h { font-family: var(--serif); font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; color: var(--brass-hi); margin-bottom: 4px; }
+.hud-sec { padding-bottom: 4px; border-bottom: 1px solid rgba(201, 162, 82, 0.22); }
+.sec-h { font-family: var(--serif); font-size: 12.5px; line-height: 15px; font-weight: 800; letter-spacing: 0.12em; color: #ffe6a6; margin-bottom: 4px; }
 
 .state-badge {
   text-align: center; font-family: var(--serif); font-size: 20px; font-weight: 800;
@@ -85,10 +85,10 @@ html, body {
   margin-bottom: 3px; border: 1.5px solid transparent; white-space: nowrap;
 }
 .state-badge.unseen { background: linear-gradient(180deg, #124435, #0a2920); border-color: var(--emerald); color: #a7f3d0; }
-.state-badge.curious { background: linear-gradient(180deg, #f4bc3c, #c88a12); border-color: #fef08a; color: #120c04; box-shadow: 0 3px 16px rgba(245, 158, 11, 0.42); }
+.state-badge.curious { background: linear-gradient(180deg, #ffd477, #e6a82d); border-color: #ffe8a9; color: #211606; font-size: 22px; box-shadow: 0 3px 14px rgba(245, 158, 11, 0.28); }
 .state-badge.breach { background: linear-gradient(180deg, #ef2348, #9e112d); border-color: #fda4af; color: #ffffff; font-size: 18px; letter-spacing: 0.06em; box-shadow: 0 4px 18px rgba(239, 35, 72, 0.5); }
 .state-badge.sweeping { background: linear-gradient(180deg, #ea580c, #7e22ce); border-color: #fdba74; color: #fff7ed; box-shadow: 0 3px 16px rgba(234, 88, 12, 0.42); }
-.state-copy { font-size: 11px; color: #e2dacd; text-align: center; line-height: 1.2; margin-bottom: 6px; font-weight: 500; }
+.state-copy { font-size: 12px; color: #efe6d7; text-align: center; line-height: 1.2; margin-bottom: 6px; font-weight: 600; }
 
 .bell-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
 .hk { font-size: 10px; font-weight: 800; letter-spacing: 0.09em; color: var(--muted); }
@@ -111,7 +111,7 @@ html, body {
 
 /* Objectives */
 .obj-check-list { list-style: none; display: flex; flex-direction: column; gap: 3px; }
-.oc-row { display: flex; align-items: center; gap: 6px; font-size: 11.2px; font-weight: 600; color: #d5cfc4; padding: 2.5px 6px; background: rgba(7, 10, 18, 0.72); border: 1px solid rgba(161, 173, 196, 0.18); border-radius: 2px; }
+.oc-row { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 650; color: #e9e1d4; padding: 2.5px 6px; background: rgba(7, 10, 18, 0.72); border: 1px solid rgba(161, 173, 196, 0.18); border-radius: 2px; }
 .oc-row.done { border-color: rgba(52, 211, 153, 0.55); background: rgba(16, 68, 48, 0.34); color: #a7f3d0; }
 .oc-row.active { border-color: rgba(246, 216, 138, 0.62); background: rgba(201, 162, 82, 0.13); color: var(--ivory); }
 .oc-box { width: 12px; text-align: center; font-weight: 900; color: var(--brass-hi); flex-shrink: 0; }
@@ -131,8 +131,8 @@ html, body {
 .cur-card.breach { border-color: #ff5568; background: rgba(84, 14, 28, 0.5); }
 .cur-card.sweeping { border-color: #fb923c; background: rgba(68, 24, 42, 0.44); }
 .cur-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5px; }
-.cur-name { font-size: 10.2px; font-weight: 800; color: var(--ivory); }
-.cur-st { font-family: var(--mono); font-size: 9.2px; font-weight: 800; }
+.cur-name { font-size: 11px; font-weight: 800; color: var(--ivory); }
+.cur-st { font-family: var(--mono); font-size: 10px; font-weight: 800; }
 .cur-st.patrol { color: #7dd3fc; }
 .cur-st.curious { color: #fde68a; }
 .cur-st.breach { color: #fda4af; }
@@ -144,14 +144,16 @@ html, body {
 .cur-fill.breach { background: linear-gradient(90deg, #ef2348, #ff7a8a); }
 .cur-fill.sweeping { background: linear-gradient(90deg, #fb923c, #c084fc); }
 
-/* Crisp 6-Row Icon LEGEND Block */
+/* Field legend */
 .legend-sec { flex: 1; border-bottom: none; padding-bottom: 0; min-height: 0; }
 .legend-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
-.legend-list li { display: flex; align-items: center; gap: 8px; font-size: 10.6px; color: #ddd6ca; font-weight: 500; line-height: 1.15; }
+.legend-list li { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #f0e8d9; font-weight: 600; line-height: 15px; }
 .li-ico { width: 14px; height: 14px; flex-shrink: 0; display: inline-block; position: relative; }
 .li-cur { border-radius: 50%; background: #f59e0b; border: 2px solid #62e3ff; box-shadow: 0 0 4px rgba(98, 227, 255, 0.6); }
 .li-sofa { border-radius: 2px; background: #8f2036; border: 1.5px solid #f6d88a; }
-.li-pillar { background: #e8dfd1; border: 1.5px solid #c9a252; clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%); }
+.li-hatch { border: 1px solid #78d9b7; background: repeating-linear-gradient(135deg, #153e33 0 3px, #81ddbc 3px 4.5px); }
+.li-track { border-radius: 50%; border: 1.5px solid #d1b477; background: #211d18; }
+.li-track::after { content: '1s'; display: block; text-align: center; font: bold 9px/12px Georgia, serif; color: #fff0c9; }
 .li-lamp { border-radius: 50%; background: radial-gradient(circle, #fef08a 28%, #e5aa32 62%, transparent 80%); }
 .li-sec { border-radius: 50%; background: #2dd4bf; border: 2px solid #fb7185; box-shadow: 0 0 5px rgba(45, 212, 191, 0.7); }
 .li-elev { border-radius: 2px; background: #11382d; border: 1.5px solid #34d399; box-shadow: 0 0 5px rgba(52, 211, 153, 0.55); }

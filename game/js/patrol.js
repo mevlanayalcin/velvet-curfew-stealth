@@ -11,6 +11,7 @@ export function updateCuratorPatrols(state, dt, sound, onCaught, onRibbon) {
 
   const p = state.player;
   const obs = state.wing.obstacles;
+  const geom = p.crouched ? state.geom.crouched : state.geom;
   const concealed = p.inVeil || (p.inSettee && p.crouched);
   let maxSusp = 0;
   let badge = 'UNSEEN';
@@ -21,8 +22,8 @@ export function updateCuratorPatrols(state, dt, sound, onCaught, onRibbon) {
     const dx = p.x - g.x, dy = p.y - g.y;
     const dist = Math.hypot(dx, dy);
     const effRange = g.spec.visionRange * (p.inShadow && p.crouched ? 0.56 : p.inShadow ? 0.74 : 1.0);
-    const inCone = isPointInVisionCone(g.x, g.y, g.angle, g.spec.fov, effRange, p.x, p.y, state.geom, state.veilsActive);
-    const closeBump = dist < 22 && hasLineOfSight(g.x, g.y, p.x, p.y, state.geom, state.veilsActive);
+    const inCone = isPointInVisionCone(g.x, g.y, g.angle, g.spec.fov, effRange, p.x, p.y, geom, state.veilsActive);
+    const closeBump = dist < 22 && hasLineOfSight(g.x, g.y, p.x, p.y, geom, state.veilsActive);
     const canSee = !concealed && (inCone || closeBump);
 
     if (canSee) {
@@ -103,13 +104,16 @@ export function updateCuratorPatrols(state, dt, sound, onCaught, onRibbon) {
         }
         g.peakSuspicion = 0; g.lurePos = null; g.callout = null; g.target = null; g.state = 'PATROL';
       }
+    } else if (g.pauseLeft > 0) {
+      g.pauseLeft = Math.max(0, g.pauseLeft - dt);
     } else {
       while (g.crumbs.length && Math.hypot(g.crumbs[g.crumbs.length - 1].x - g.x, g.crumbs[g.crumbs.length - 1].y - g.y) < 8) g.crumbs.pop();
       const wp = g.crumbs.length ? g.crumbs[g.crumbs.length - 1] : g.waypoints[g.wpIndex];
       const tx = wp.x - g.x, ty = wp.y - g.y, td = Math.hypot(tx, ty);
-      if (td < 8) {
-        if (g.crumbs.length) g.crumbs.pop();
-        else g.wpIndex = (g.wpIndex + 1) % g.waypoints.length;
+      if (!g.crumbs.length && td <= g.spec.speed * dt) {
+        moveWithSlide(g, tx, ty, obs);
+        g.pauseLeft = wp.pause;
+        g.wpIndex = (g.wpIndex + 1) % g.waypoints.length;
       } else {
         g.angle = turnToward(g.angle, Math.atan2(ty, tx), 3.4 * dt);
         moveWithSlide(g, (tx / td) * g.spec.speed * dt, (ty / td) * g.spec.speed * dt, obs);
@@ -117,8 +121,9 @@ export function updateCuratorPatrols(state, dt, sound, onCaught, onRibbon) {
     }
 
     const movedDist = Math.hypot(g.x - prevX, g.y - prevY);
-    g.stallT = movedDist > 12 * dt ? 0 : g.stallT + dt;
+    g.stallT = g.pauseLeft > 0 || movedDist > 12 * dt ? 0 : g.stallT + dt;
     if (g.state !== 'PATROL') {
+      g.pauseLeft = 0;
       if (!g.crumbs.length) g.crumbs.push({ x: prevX, y: prevY });
       const c = g.crumbs[g.crumbs.length - 1];
       if (Math.hypot(g.x - c.x, g.y - c.y) > 6) g.crumbs.push({ x: g.x, y: g.y });
@@ -132,7 +137,7 @@ export function updateCuratorPatrols(state, dt, sound, onCaught, onRibbon) {
       }
     }
 
-    g.visionPoly = computeRaycastVisionCone(g.x, g.y, g.angle, g.spec.fov, g.spec.visionRange, state.geom, state.veilsActive);
+    g.visionPoly = computeRaycastVisionCone(g.x, g.y, g.angle, g.spec.fov, g.spec.visionRange, geom, state.veilsActive);
     maxSusp = Math.max(maxSusp, g.suspicion);
     if (g.state === 'BREACH') badge = 'BREACH';
     else if (g.state === 'SWEEPING' && badge !== 'BREACH') badge = 'SWEEPING';
@@ -187,7 +192,7 @@ export function createGuards(wing, geom) {
       id: idx, type: g.type, spec,
       x: g.x, y: g.y, r: 11, angle: g.angle ?? 0,
       state: 'PATROL', suspicion: 0, peakSuspicion: 0, stateTimer: 0,
-      waypoints: g.waypoints.map((w) => ({ x: w.x, y: w.y })), wpIndex: 0,
+      waypoints: g.waypoints.map((w, i) => ({ ...w, pause: 1 + ((i + idx) % 2) })), wpIndex: 0, pauseLeft: 0,
       target: null, lurePos: null, callout: null, searchDir: 1,
       hitCooldown: 0, stepTimer: 0.2 + idx * 0.14, crumbs: [], stallT: 0, visionPoly: [],
     };
@@ -249,7 +254,7 @@ export function soundCurfewBell(state, sourceGuard, x, y, sound, onRibbon) {
 
   for (const g of state.guards) {
     if (sourceGuard && g.id === sourceGuard.id) {
-      g.state = 'BREACH'; g.suspicion = 1; g.stateTimer = 4.2; g.target = { x, y }; g.callout = 'CURFEW BELL!';
+      g.state = 'BREACH'; g.suspicion = 1; g.stateTimer = 4.2; g.target = { x, y }; g.lurePos = null; g.callout = 'CURFEW BELL!';
       continue;
     }
     if (g.state === 'BREACH') {
@@ -258,7 +263,7 @@ export function soundCurfewBell(state, sourceGuard, x, y, sound, onRibbon) {
     }
     if (Math.hypot(g.x - x, g.y - y) < 390) {
       g.state = 'SWEEPING'; g.suspicion = Math.max(g.suspicion, 0.72); g.peakSuspicion = Math.max(g.peakSuspicion, 0.72);
-      g.target = { x, y }; g.callout = 'CONVERGING'; g.stateTimer = 4.2;
+      g.target = { x, y }; g.lurePos = null; g.callout = 'CONVERGING'; g.stateTimer = 4.2;
       state.bellLinks.push({ x1: x, y1: y, x2: g.x, y2: g.y });
     }
   }

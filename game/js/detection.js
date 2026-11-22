@@ -85,6 +85,7 @@ export function douseNearbySconce(state, sound, onRibbon) {
     if (g.state === 'BREACH') continue;
     if (Math.hypot(g.x - lamp.x, g.y - lamp.y) < 175) {
       g.target = { x: lamp.x, y: lamp.y };
+      g.lurePos = null;
       g.state = 'CURIOUS';
       g.callout = 'DARKENED LAMP?';
       g.suspicion = Math.max(g.suspicion, 0.45);

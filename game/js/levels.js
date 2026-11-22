@@ -150,7 +150,7 @@ const RAW_WINGS = [
     guards: [
       { type: 'curator', x: 356, y: 378, angle: -2.42, waypoints: [{ x: 356, y: 422 }, { x: 356, y: 124 }, { x: 248, y: 124 }, { x: 248, y: 422 }] },
       { type: 'curator', x: 566, y: 288, angle: 2.94, waypoints: [{ x: 566, y: 128 }, { x: 566, y: 462 }] },
-      { type: 'inspector', x: 410, y: 126, angle: 0.56, waypoints: [{ x: 284, y: 122 }, { x: 568, y: 122 }] },
+      { type: 'inspector', x: 410, y: 88, angle: 0, waypoints: [{ x: 284, y: 88 }, { x: 568, y: 88 }] },
     ],
   },
 
